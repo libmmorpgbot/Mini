@@ -24,6 +24,7 @@ export class Player {
   private readonly character: CharacterClass;
   private readonly sprite: PIXI.AnimatedSprite;
   private readonly textures: Record<AnimState, PIXI.Texture[]>;
+  private readonly scale: number;
 
   private state: AnimState = 'run';
   private inCombat = false;
@@ -46,11 +47,12 @@ export class Player {
     this.container.x = x;
     this.container.y = y;
 
-    const scale = TARGET_HEIGHT / character.animations.idle.frameHeight;
+    this.scale = TARGET_HEIGHT / character.animations.idle.frameHeight;
 
     this.sprite = new PIXI.AnimatedSprite(this.textures.run);
     this.sprite.anchor.set(0.5, 1);
-    this.sprite.scale.set(scale);
+    this.sprite.scale.set(this.scale);
+    this.sprite.y = character.animations.run.bottomPadding * this.scale;
     this.sprite.animationSpeed = character.animations.run.fps / 60;
     this.sprite.play();
 
@@ -96,6 +98,7 @@ export class Player {
     const def = this.character.animations[next];
     this.sprite.textures = this.textures[next];
     this.sprite.animationSpeed = def.fps / 60;
+    this.sprite.y = def.bottomPadding * this.scale;
     this.sprite.loop = true;
     this.sprite.gotoAndPlay(0);
 

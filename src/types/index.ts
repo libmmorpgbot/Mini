@@ -5,6 +5,14 @@ export interface CharacterAnimation {
   frameCount: number;
   /** Playback speed of this animation, in frames per second. */
   fps: number;
+  /**
+   * Transparent padding (in source px) below the character's actual feet
+   * within each frame -- these sprite sheets reserve a fixed canvas per
+   * frame, so the visible figure rarely touches the bottom edge. Used to
+   * shift the sprite down so its real feet (not the frame's bottom edge)
+   * land on the ground line.
+   */
+  bottomPadding: number;
 }
 
 export interface CharacterClass {
