@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { TelegramWebApp } from '../types';
 
 export function useTelegram() {
@@ -15,16 +15,5 @@ export function useTelegram() {
     setWebApp(tg);
   }, []);
 
-  const close = useMemo(
-    () => () => {
-      if (webApp) {
-        webApp.close();
-      } else {
-        window.close();
-      }
-    },
-    [webApp]
-  );
-
-  return { webApp, close, user: webApp?.initDataUnsafe.user };
+  return { webApp, user: webApp?.initDataUnsafe.user };
 }

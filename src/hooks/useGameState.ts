@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { CharacterClass, GameState } from '../types';
 
 const BASE_SPEED = 1;
-const BOOST_MULTIPLIER = 2;
-const BOOST_DURATION_MS = 2000;
-const BOOST_COOLDOWN_MS = 10000;
 const SPEED_INCREASE_PER_LEVEL = 0.05;
 const HEALTH_INCREASE_PER_LEVEL = 15;
 const XP_PER_KILL = 20;
@@ -15,8 +12,6 @@ type Action =
   | { type: 'KILL_MONSTER' }
   | { type: 'TAKE_DAMAGE'; amount: number }
   | { type: 'REGEN'; amount: number }
-  | { type: 'ACTIVATE_BOOST' }
-  | { type: 'DEACTIVATE_BOOST' }
   | { type: 'RESET'; baseHealth: number };
 
 function createInitialState(baseHealth: number): GameState {
@@ -30,7 +25,6 @@ function createInitialState(baseHealth: number): GameState {
     health: baseHealth,
     maxHealth: baseHealth,
     speed: BASE_SPEED,
-    boostActive: false,
   };
 }
 
@@ -60,10 +54,6 @@ function reducer(state: GameState, action: Action): GameState {
     }
     case 'REGEN':
       return { ...state, health: Math.min(state.maxHealth, state.health + action.amount) };
-    case 'ACTIVATE_BOOST':
-      return { ...state, boostActive: true };
-    case 'DEACTIVATE_BOOST':
-      return { ...state, boostActive: false };
     case 'RESET':
       return createInitialState(action.baseHealth);
     default:
@@ -73,18 +63,11 @@ function reducer(state: GameState, action: Action): GameState {
 
 export function useGameState(character: CharacterClass) {
   const [state, dispatch] = useReducer(reducer, character.baseHealth, createInitialState);
-  const [boostReady, setBoostReady] = useState(true);
-  const boostTimeoutRef = useRef<number | undefined>(undefined);
-  const cooldownTimeoutRef = useRef<number | undefined>(undefined);
   const characterIdRef = useRef(character.id);
 
   useEffect(() => {
     if (characterIdRef.current === character.id) return;
     characterIdRef.current = character.id;
-
-    window.clearTimeout(boostTimeoutRef.current);
-    window.clearTimeout(cooldownTimeoutRef.current);
-    setBoostReady(true);
     dispatch({ type: 'RESET', baseHealth: character.baseHealth });
   }, [character.id, character.baseHealth]);
 
@@ -92,33 +75,5 @@ export function useGameState(character: CharacterClass) {
   const takeDamage = useCallback((amount: number) => dispatch({ type: 'TAKE_DAMAGE', amount }), []);
   const regen = useCallback((amount: number) => dispatch({ type: 'REGEN', amount }), []);
 
-  const activateBoost = useCallback(() => {
-    setBoostReady((ready) => {
-      if (!ready) return ready;
-
-      dispatch({ type: 'ACTIVATE_BOOST' });
-
-      boostTimeoutRef.current = window.setTimeout(() => {
-        dispatch({ type: 'DEACTIVATE_BOOST' });
-      }, BOOST_DURATION_MS);
-
-      cooldownTimeoutRef.current = window.setTimeout(() => {
-        setBoostReady(true);
-      }, BOOST_COOLDOWN_MS);
-
-      return false;
-    });
-  }, []);
-
-  useEffect(
-    () => () => {
-      window.clearTimeout(boostTimeoutRef.current);
-      window.clearTimeout(cooldownTimeoutRef.current);
-    },
-    []
-  );
-
-  const effectiveSpeed = state.speed * (state.boostActive ? BOOST_MULTIPLIER : 1);
-
-  return { state, effectiveSpeed, killMonster, takeDamage, regen, activateBoost, boostReady };
+  return { state, killMonster, takeDamage, regen };
 }

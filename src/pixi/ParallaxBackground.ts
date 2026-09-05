@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { lerpColor } from './DayNightCycle';
+import { lerpColor } from '../utils/color';
 
 type DrawFn = (g: PIXI.Graphics, width: number, height: number) => void;
 
@@ -7,22 +7,44 @@ const SEGMENT_COUNT = 3;
 const GROUND_Y_RATIO = 0.84;
 const TREE_BASE_Y_RATIO = 0.8;
 
+/** Real screen px per "art pixel" -- the lower, the chunkier/more pixelated the result. */
+const PIXEL_SIZE = 3;
+
+/**
+ * Renders `draw` at full-resolution coordinates but bakes it into a
+ * low-resolution, nearest-neighbour-scaled texture, so smooth vector shapes
+ * come out as genuine blocky pixel art instead of an antialiased illustration.
+ */
+function renderPixelated(renderer: PIXI.IRenderer, width: number, height: number, draw: DrawFn): PIXI.Sprite {
+  const graphics = new PIXI.Graphics();
+  draw(graphics, width, height);
+
+  const renderTexture = PIXI.RenderTexture.create({
+    width,
+    height,
+    resolution: 1 / PIXEL_SIZE,
+    scaleMode: PIXI.SCALE_MODES.NEAREST,
+  });
+  renderer.render(graphics, { renderTexture });
+  graphics.destroy();
+
+  return new PIXI.Sprite(renderTexture);
+}
+
 class ParallaxLayer {
   readonly container: PIXI.Container;
   private readonly segments: PIXI.Container[] = [];
   private readonly segmentWidth: number;
   private readonly factor: number;
 
-  constructor(width: number, height: number, factor: number, draw: DrawFn) {
+  constructor(renderer: PIXI.IRenderer, width: number, height: number, factor: number, draw: DrawFn) {
     this.factor = factor;
     this.segmentWidth = width;
     this.container = new PIXI.Container();
 
     for (let i = 0; i < SEGMENT_COUNT; i++) {
       const segment = new PIXI.Container();
-      const graphics = new PIXI.Graphics();
-      draw(graphics, width, height);
-      segment.addChild(graphics);
+      segment.addChild(renderPixelated(renderer, width, height, draw));
       segment.x = i * width;
       this.segments.push(segment);
       this.container.addChild(segment);
@@ -45,103 +67,26 @@ class ParallaxLayer {
 export class ParallaxBackground {
   readonly container: PIXI.Container;
   private readonly layers: ParallaxLayer[];
-  private readonly celestial: CelestialLayer;
 
-  constructor(width: number, height: number) {
+  constructor(renderer: PIXI.IRenderer, width: number, height: number) {
     this.container = new PIXI.Container();
 
-    const skyLayer = new ParallaxLayer(width, height, 0.1, drawSky);
-    const farMountainLayer = new ParallaxLayer(width, height, 0.25, drawFarMountains);
-    const nearMountainLayer = new ParallaxLayer(width, height, 0.4, drawNearMountains);
-    const treesLayer = new ParallaxLayer(width, height, 0.55, drawTrees);
-    const groundLayer = new ParallaxLayer(width, height, 1, drawGround);
-    this.layers = [skyLayer, farMountainLayer, nearMountainLayer, treesLayer, groundLayer];
-    this.celestial = new CelestialLayer(width, height);
+    this.layers = [
+      new ParallaxLayer(renderer, width, height, 0.1, drawSky),
+      new ParallaxLayer(renderer, width, height, 0.25, drawFarMountains),
+      new ParallaxLayer(renderer, width, height, 0.4, drawNearMountains),
+      new ParallaxLayer(renderer, width, height, 0.55, drawTrees),
+      new ParallaxLayer(renderer, width, height, 1, drawGround),
+    ];
 
-    this.container.addChild(
-      skyLayer.container,
-      this.celestial.container,
-      farMountainLayer.container,
-      nearMountainLayer.container,
-      treesLayer.container,
-      groundLayer.container
-    );
+    for (const layer of this.layers) {
+      this.container.addChild(layer.container);
+    }
   }
 
-  update(deltaSeconds: number, baseSpeed: number, dayFactor: number): void {
+  update(deltaSeconds: number, baseSpeed: number): void {
     for (const layer of this.layers) {
       layer.update(deltaSeconds, baseSpeed);
-    }
-    this.celestial.update(deltaSeconds, dayFactor);
-  }
-}
-
-class CelestialLayer {
-  readonly container: PIXI.Container;
-  private readonly sun: PIXI.Graphics;
-  private readonly moon: PIXI.Graphics;
-  private readonly starsContainer: PIXI.Container;
-  private readonly stars: { graphic: PIXI.Graphics; baseAlpha: number; speed: number; phase: number }[] = [];
-
-  constructor(width: number, height: number) {
-    this.container = new PIXI.Container();
-
-    const x = width * 0.8;
-    const y = height * 0.16;
-
-    this.sun = new PIXI.Graphics();
-    this.sun.beginFill(0xffb15c, 0.25);
-    this.sun.drawCircle(0, 0, 52);
-    this.sun.endFill();
-    this.sun.beginFill(0xffb15c, 0.4);
-    this.sun.drawCircle(0, 0, 38);
-    this.sun.endFill();
-    this.sun.beginFill(0xffd68a);
-    this.sun.drawCircle(0, 0, 27);
-    this.sun.endFill();
-    this.sun.x = x;
-    this.sun.y = y;
-
-    this.moon = new PIXI.Graphics();
-    this.moon.beginFill(0xe8eef7);
-    this.moon.drawCircle(0, 0, 22);
-    this.moon.endFill();
-    this.moon.beginFill(0xc9d6e8);
-    this.moon.drawCircle(-8, -6, 5);
-    this.moon.drawCircle(6, 4, 4);
-    this.moon.endFill();
-    this.moon.x = x;
-    this.moon.y = y;
-
-    this.starsContainer = new PIXI.Container();
-    for (let i = 0; i < 25; i++) {
-      const graphic = new PIXI.Graphics();
-      const radius = 1 + Math.random() * 1.5;
-      graphic.beginFill(0xffffff);
-      graphic.drawCircle(0, 0, radius);
-      graphic.endFill();
-      graphic.x = Math.random() * width;
-      graphic.y = Math.random() * height * 0.55;
-      this.starsContainer.addChild(graphic);
-      this.stars.push({
-        graphic,
-        baseAlpha: 0.4 + Math.random() * 0.6,
-        speed: 1 + Math.random() * 2,
-        phase: Math.random() * Math.PI * 2,
-      });
-    }
-
-    this.container.addChild(this.starsContainer, this.sun, this.moon);
-  }
-
-  update(deltaSeconds: number, dayFactor: number): void {
-    this.sun.alpha = dayFactor;
-    this.moon.alpha = 1 - dayFactor;
-    this.starsContainer.alpha = 1 - dayFactor;
-
-    for (const star of this.stars) {
-      star.phase += deltaSeconds * star.speed;
-      star.graphic.alpha = star.baseAlpha * (0.6 + 0.4 * Math.sin(star.phase));
     }
   }
 }
@@ -181,12 +126,16 @@ function drawCloud(g: PIXI.Graphics, x: number, y: number, s = 1): void {
 function drawSky(g: PIXI.Graphics, width: number, height: number): void {
   const bandBottom = height * TREE_BASE_Y_RATIO;
 
-  drawGradientRect(g, 0, 0, width, bandBottom, [0x140f24, 0x2c2044, 0x5a3f5c, 0xba7b6e, 0xe6a67a], 28);
+  drawGradientRect(g, 0, 0, width, bandBottom, [0x3a6ea8, 0x6fa3c9, 0xa9cfe0, 0xe8dcae], 16);
 
-  g.beginFill(0xd9c3e0, 0.28);
-  drawCloud(g, width * 0.15, height * 0.16, 1.1);
+  g.beginFill(0xffffff, 0.85);
+  drawCloud(g, width * 0.15, height * 0.15, 1.1);
   drawCloud(g, width * 0.55, height * 0.24, 0.9);
   drawCloud(g, width * 0.85, height * 0.12, 1.2);
+  g.endFill();
+
+  g.beginFill(0xfff3c4, 0.9);
+  g.drawCircle(width * 0.78, height * 0.14, 26);
   g.endFill();
 }
 
@@ -215,38 +164,31 @@ function drawMountain(
   g.endFill();
 
   if (snowColor !== null) {
-    g.beginFill(snowColor, 0.9);
+    g.beginFill(snowColor, 0.95);
     drawSnowPeak(g, x, tipY, width * 0.12, peakHeight * 0.28);
     g.endFill();
   }
 }
 
 function drawCastleSilhouette(g: PIXI.Graphics, x: number, baseY: number): void {
-  const color = 0x241a35;
-  g.beginFill(color, 0.55);
+  const color = 0x4a5a78;
+  g.beginFill(color, 0.7);
 
-  // hill the castle sits on
   g.drawEllipse(x, baseY, 90, 20);
-
-  // curtain wall
   g.drawRect(x - 46, baseY - 34, 92, 34);
-
-  // towers
   g.drawRect(x - 58, baseY - 52, 20, 52);
   g.drawRect(x + 38, baseY - 52, 20, 52);
   g.drawRect(x - 12, baseY - 64, 24, 64);
 
-  // crenellations
   for (let i = -1; i <= 1; i++) {
     g.drawRect(x - 58 + i * 8, baseY - 58, 6, 8);
     g.drawRect(x + 38 + i * 8, baseY - 58, 6, 8);
   }
 
-  // central spire roof
   g.drawPolygon([x - 12, baseY - 64, x, baseY - 82, x + 12, baseY - 64]);
   g.endFill();
 
-  g.beginFill(0xffd68a, 0.4);
+  g.beginFill(0xffe9a8, 0.6);
   g.drawRect(x - 3, baseY - 46, 6, 8);
   g.drawRect(x - 51, baseY - 30, 5, 7);
   g.drawRect(x + 45, baseY - 30, 5, 7);
@@ -256,9 +198,9 @@ function drawCastleSilhouette(g: PIXI.Graphics, x: number, baseY: number): void 
 function drawFarMountains(g: PIXI.Graphics, width: number, height: number): void {
   const baseY = height * 0.58;
 
-  drawMountain(g, width * 0.08, baseY, 220, 130, 0x4a3d66, 0xd8cbe6);
-  drawMountain(g, width * 0.5, baseY, 260, 160, 0x4a3d66, 0xd8cbe6);
-  drawMountain(g, width * 0.88, baseY, 210, 120, 0x4a3d66, 0xd8cbe6);
+  drawMountain(g, width * 0.08, baseY, 220, 130, 0x7d92b5, 0xf0f4fa);
+  drawMountain(g, width * 0.5, baseY, 260, 160, 0x7d92b5, 0xf0f4fa);
+  drawMountain(g, width * 0.88, baseY, 210, 120, 0x7d92b5, 0xf0f4fa);
 
   drawCastleSilhouette(g, width * 0.68, baseY - 6);
 }
@@ -266,9 +208,9 @@ function drawFarMountains(g: PIXI.Graphics, width: number, height: number): void
 function drawNearMountains(g: PIXI.Graphics, width: number, height: number): void {
   const baseY = height * TREE_BASE_Y_RATIO + 6;
 
-  drawMountain(g, width * 0.22, baseY, 190, 95, 0x2f2440, null);
-  drawMountain(g, width * 0.62, baseY, 230, 110, 0x2f2440, null);
-  drawMountain(g, width * 0.95, baseY, 170, 85, 0x2f2440, null);
+  drawMountain(g, width * 0.22, baseY, 190, 95, 0x5a7099, null);
+  drawMountain(g, width * 0.62, baseY, 230, 110, 0x5a7099, null);
+  drawMountain(g, width * 0.95, baseY, 170, 85, 0x5a7099, null);
 }
 
 function drawPineCluster(g: PIXI.Graphics, x: number, baseY: number, darkColor: number, lightColor: number): void {
@@ -294,50 +236,46 @@ function drawTrees(g: PIXI.Graphics, width: number, height: number): void {
     const wobble = Math.sin(i * 2.4) * 5;
     const trunkHeight = 24 + ((i * 7) % 3) * 6 + wobble * 0.4;
 
-    g.beginFill(0x3a2418);
+    g.beginFill(0x5a3c28);
     g.drawRect(x - 5, baseY - trunkHeight, 10, trunkHeight);
     g.endFill();
 
-    const dark = i % 3 === 0 ? 0x1a3f33 : 0x1f4d3d;
-    drawPineCluster(g, x + wobble * 0.3, baseY - trunkHeight, dark, 0x3f7a5c);
+    const dark = i % 3 === 0 ? 0x2d6b46 : 0x357a4f;
+    drawPineCluster(g, x + wobble * 0.3, baseY - trunkHeight, dark, 0x63a56e);
   }
 }
 
 function drawGround(g: PIXI.Graphics, width: number, height: number): void {
   const groundY = height * GROUND_Y_RATIO;
 
-  drawGradientRect(g, 0, groundY, width, height - groundY, [0x4a7a52, 0x33562f], 10);
+  drawGradientRect(g, 0, groundY, width, height - groundY, [0x6fae55, 0x4a8a3f], 10);
 
-  // contact shadow where the trees meet the grass
-  g.beginFill(0x14241a, 0.35);
+  g.beginFill(0x24401f, 0.35);
   g.drawRect(0, groundY, width, 8);
   g.endFill();
 
-  // winding dirt path
-  g.beginFill(0x6b4f34, 0.8);
+  g.beginFill(0x8a6a42, 0.85);
   g.drawEllipse(width * 0.2, groundY + 20, 60, 12);
   g.drawEllipse(width * 0.42, groundY + 26, 70, 13);
   g.drawEllipse(width * 0.68, groundY + 20, 65, 12);
   g.drawEllipse(width * 0.9, groundY + 16, 50, 10);
   g.endFill();
 
-  g.beginFill(0x5a4632, 0.5);
+  g.beginFill(0x74593a, 0.5);
   for (let i = 0; i < 5; i++) {
     const x = (width / 5) * i + 20;
     g.drawEllipse(x, groundY + 15, 20, 5);
   }
   g.endFill();
 
-  // small rocks
-  g.beginFill(0x7c8a86, 0.7);
+  g.beginFill(0x8a988f, 0.75);
   for (let i = 0; i < 6; i++) {
     const x = (width / 6) * i + 45;
     g.drawEllipse(x, groundY + 30, 6, 4);
   }
   g.endFill();
 
-  // grass blades
-  g.beginFill(0x2a4a2c);
+  g.beginFill(0x3d6b34);
   for (let i = 0; i < 26; i++) {
     const x = (width / 26) * i + (i % 2 === 0 ? 6 : 0);
     g.drawRect(x, groundY, 3, 12 + (i % 3) * 3);

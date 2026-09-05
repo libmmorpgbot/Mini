@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { GameScene } from './pixi/GameScene';
 import { HUD } from './components/HUD';
-import { Controls } from './components/Controls';
 import { CharacterSelect } from './components/CharacterSelect';
 import { BottomNav, type TabId } from './components/BottomNav';
 import { StubPanel, ProfilePanel } from './components/InfoPanels';
@@ -16,14 +15,12 @@ interface GameShellProps {
   activeTab: TabId;
   onChangeTab: (tab: TabId) => void;
   onChangeCharacter: (character: CharacterClass) => void;
-  onClose: () => void;
 }
 
-function GameShell({ character, activeTab, onChangeTab, onChangeCharacter, onClose }: GameShellProps) {
+function GameShell({ character, activeTab, onChangeTab, onChangeCharacter }: GameShellProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<GameScene | null>(null);
-  const { state, effectiveSpeed, killMonster, takeDamage, regen, activateBoost, boostReady } =
-    useGameState(character);
+  const { state, killMonster, takeDamage, regen } = useGameState(character);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -44,8 +41,8 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter, onClo
   }, [character.id]);
 
   useEffect(() => {
-    sceneRef.current?.setSpeedMultiplier(effectiveSpeed);
-  }, [effectiveSpeed]);
+    sceneRef.current?.setSpeedMultiplier(state.speed);
+  }, [state.speed]);
 
   useEffect(() => {
     sceneRef.current?.setLevel(state.level);
@@ -53,18 +50,10 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter, onClo
 
   return (
     <div className="app-root">
-      <div className="topbar">
-        <button className="close-button" onClick={onClose}>
-          ✕
-        </button>
-      </div>
-
-      <HUD character={character} state={state} speed={effectiveSpeed} />
+      <HUD character={character} state={state} speed={state.speed} />
 
       <div className="game-content">
         <div className="game-host" ref={hostRef} hidden={activeTab !== 'game'} />
-
-        {activeTab === 'game' && <Controls onBoost={activateBoost} boostReady={boostReady} />}
 
         {activeTab === 'heroes' && (
           <div className="tab-panel">
@@ -109,7 +98,7 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter, onClo
 function App() {
   const [character, setCharacter] = useState<CharacterClass | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('game');
-  const { close } = useTelegram();
+  useTelegram();
 
   if (!character) {
     return (
@@ -125,7 +114,6 @@ function App() {
       activeTab={activeTab}
       onChangeTab={setActiveTab}
       onChangeCharacter={setCharacter}
-      onClose={close}
     />
   );
 }

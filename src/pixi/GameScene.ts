@@ -4,7 +4,6 @@ import { Player } from './Player';
 import { Monster } from './Monster';
 import { DustEmitter } from './DustParticles';
 import { DamageNumberEmitter } from './DamageNumbers';
-import { DayNightCycle, lerpColor } from './DayNightCycle';
 import type { CharacterClass } from '../types';
 
 export interface GameSceneCallbacks {
@@ -32,10 +31,7 @@ const MONSTER_ATTACK_INTERVAL_SECONDS = 0.85;
 const REGEN_PER_SECOND = 6;
 const REGEN_TICK_INTERVAL = 0.5;
 
-const DAY_BACKGROUND_COLOR = 0x4b3a52;
-const NIGHT_BACKGROUND_COLOR = 0x11101d;
-const NIGHT_OVERLAY_COLOR = 0x0a0a1c;
-const NIGHT_OVERLAY_MAX_ALPHA = 0.55;
+const BACKGROUND_COLOR = 0xe8dcae;
 
 export class GameScene {
   private readonly app: PIXI.Application;
@@ -47,8 +43,6 @@ export class GameScene {
   private readonly monstersContainer: PIXI.Container;
   private readonly dustEmitter: DustEmitter;
   private readonly damageNumbers: DamageNumberEmitter;
-  private readonly dayNightCycle: DayNightCycle;
-  private readonly nightOverlay: PIXI.Graphics;
   private readonly callbacks: GameSceneCallbacks;
 
   private speedMultiplier = 1;
@@ -69,7 +63,7 @@ export class GameScene {
     this.app = new PIXI.Application({
       width,
       height,
-      backgroundColor: DAY_BACKGROUND_COLOR,
+      backgroundColor: BACKGROUND_COLOR,
       antialias: true,
       resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
@@ -79,7 +73,7 @@ export class GameScene {
     const worldContainer = new PIXI.Container();
     this.app.stage.addChild(worldContainer);
 
-    this.background = new ParallaxBackground(width, height);
+    this.background = new ParallaxBackground(this.app.renderer, width, height);
     worldContainer.addChild(this.background.container);
 
     this.dustEmitter = new DustEmitter();
@@ -93,11 +87,6 @@ export class GameScene {
 
     this.damageNumbers = new DamageNumberEmitter();
     worldContainer.addChild(this.damageNumbers.container);
-
-    this.dayNightCycle = new DayNightCycle();
-    this.nightOverlay = new PIXI.Graphics();
-    this.drawNightOverlay(width, height);
-    this.app.stage.addChild(this.nightOverlay);
 
     this.scheduleNextSpawn();
 
@@ -145,22 +134,11 @@ export class GameScene {
     this.monstersContainer.addChild(monster.container);
   }
 
-  private drawNightOverlay(width: number, height: number): void {
-    this.nightOverlay.clear();
-    this.nightOverlay.beginFill(NIGHT_OVERLAY_COLOR);
-    this.nightOverlay.drawRect(0, 0, width, height);
-    this.nightOverlay.endFill();
-  }
-
   private readonly tick = (): void => {
     if (this.destroyed) return;
 
     const deltaMS = this.app.ticker.deltaMS;
     const deltaSeconds = deltaMS / 1000;
-
-    const dayFactor = this.dayNightCycle.update(deltaMS);
-    this.nightOverlay.alpha = (1 - dayFactor) * NIGHT_OVERLAY_MAX_ALPHA;
-    this.app.renderer.background.color = lerpColor(NIGHT_BACKGROUND_COLOR, DAY_BACKGROUND_COLOR, dayFactor);
 
     // Find the nearest monster within melee range; only it engages the player 1:1,
     // but every monster currently in range still gets to swing back.
@@ -180,7 +158,7 @@ export class GameScene {
     const combatActive = engaged !== null;
     const speed = combatActive ? 0 : BASE_MOVE_SPEED * this.speedMultiplier;
 
-    this.background.update(deltaSeconds, speed, dayFactor);
+    this.background.update(deltaSeconds, speed);
     this.player.setCombat(combatActive);
     this.player.update(deltaSeconds, this.speedMultiplier);
     this.dustEmitter.update(deltaSeconds, speed);
@@ -243,6 +221,5 @@ export class GameScene {
     const width = this.host.clientWidth || window.innerWidth;
     const height = this.host.clientHeight || window.innerHeight;
     this.app.renderer.resize(width, height);
-    this.drawNightOverlay(width, height);
   };
 }

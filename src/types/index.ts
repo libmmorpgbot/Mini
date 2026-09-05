@@ -44,7 +44,6 @@ export interface GameState {
   maxHealth: number;
   /** Run-speed multiplier, 1 = 100%. Grows +5% per level. */
   speed: number;
-  boostActive: boolean;
 }
 
 export interface TelegramUser {
