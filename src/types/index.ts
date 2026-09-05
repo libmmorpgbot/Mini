@@ -14,6 +14,7 @@ export interface CharacterClass {
   nameAccusative: string;
   title: string;
   baseHealth: number;
+  baseDamage: number;
   /** Accent color used for this character's UI highlights (hex, e.g. 0xff0000). */
   accentColor: number;
   animations: {

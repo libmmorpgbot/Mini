@@ -2,28 +2,39 @@ import * as PIXI from 'pixi.js';
 import { ParallaxBackground } from './ParallaxBackground';
 import { Player } from './Player';
 import { Monster } from './Monster';
-import { CollisionManager } from './CollisionManager';
 import { DustEmitter } from './DustParticles';
+import { DamageNumberEmitter } from './DamageNumbers';
 import { DayNightCycle, lerpColor } from './DayNightCycle';
 import type { CharacterClass } from '../types';
 
 export interface GameSceneCallbacks {
   onMonsterKilled: () => void;
   onMonsterEscaped: () => void;
+  onPlayerDamaged: (amount: number) => void;
+  onPlayerRegen: (amount: number) => void;
 }
 
 const BASE_MOVE_SPEED = 180; // px / second at speedMultiplier = 1
-const MONSTER_SPAWN_MIN_MS = 2000;
-const MONSTER_SPAWN_MAX_MS = 4000;
+const MONSTER_SPAWN_MIN_MS = 3000;
+const MONSTER_SPAWN_MAX_MS = 5500;
 const PLAYER_X_RATIO = 0.3;
-const PLAYER_Y_RATIO = 0.79;
+const GROUND_Y_RATIO = 0.85;
 const MONSTER_DESPAWN_X = -60;
 const DUST_PER_STEP_MIN = 2;
 const DUST_PER_STEP_MAX = 3;
 
-const DAY_BACKGROUND_COLOR = 0x87ceeb;
-const NIGHT_BACKGROUND_COLOR = 0x0b1e3d;
-const NIGHT_OVERLAY_COLOR = 0x0a1030;
+const ATTACK_RANGE = 62;
+const MONSTER_BASE_HEALTH = 44;
+const MONSTER_HEALTH_PER_LEVEL = 5;
+const MONSTER_BASE_DAMAGE = 5;
+const MONSTER_DAMAGE_PER_LEVEL = 0.6;
+const MONSTER_ATTACK_INTERVAL_SECONDS = 0.85;
+const REGEN_PER_SECOND = 6;
+const REGEN_TICK_INTERVAL = 0.5;
+
+const DAY_BACKGROUND_COLOR = 0x4b3a52;
+const NIGHT_BACKGROUND_COLOR = 0x11101d;
+const NIGHT_OVERLAY_COLOR = 0x0a0a1c;
 const NIGHT_OVERLAY_MAX_ALPHA = 0.55;
 
 export class GameScene {
@@ -31,21 +42,26 @@ export class GameScene {
   private readonly host: HTMLDivElement;
   private readonly background: ParallaxBackground;
   private readonly player: Player;
+  private readonly playerDamage: number;
   private readonly monsters: Monster[] = [];
   private readonly monstersContainer: PIXI.Container;
   private readonly dustEmitter: DustEmitter;
+  private readonly damageNumbers: DamageNumberEmitter;
   private readonly dayNightCycle: DayNightCycle;
   private readonly nightOverlay: PIXI.Graphics;
   private readonly callbacks: GameSceneCallbacks;
 
   private speedMultiplier = 1;
+  private level = 1;
   private spawnTimer = 0;
   private nextSpawnDelay = 0;
+  private regenTimer = 0;
   private destroyed = false;
 
   constructor(host: HTMLDivElement, character: CharacterClass, callbacks: GameSceneCallbacks) {
     this.host = host;
     this.callbacks = callbacks;
+    this.playerDamage = character.baseDamage;
 
     const width = host.clientWidth || window.innerWidth;
     const height = host.clientHeight || window.innerHeight;
@@ -53,7 +69,7 @@ export class GameScene {
     this.app = new PIXI.Application({
       width,
       height,
-      backgroundColor: 0x87ceeb,
+      backgroundColor: DAY_BACKGROUND_COLOR,
       antialias: true,
       resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
@@ -69,11 +85,14 @@ export class GameScene {
     this.dustEmitter = new DustEmitter();
     worldContainer.addChild(this.dustEmitter.container);
 
-    this.player = new Player(width * PLAYER_X_RATIO, height * PLAYER_Y_RATIO, character);
+    this.player = new Player(width * PLAYER_X_RATIO, height * GROUND_Y_RATIO, character);
     worldContainer.addChild(this.player.container);
 
     this.monstersContainer = new PIXI.Container();
     worldContainer.addChild(this.monstersContainer);
+
+    this.damageNumbers = new DamageNumberEmitter();
+    worldContainer.addChild(this.damageNumbers.container);
 
     this.dayNightCycle = new DayNightCycle();
     this.nightOverlay = new PIXI.Graphics();
@@ -90,6 +109,10 @@ export class GameScene {
     this.speedMultiplier = multiplier;
   }
 
+  setLevel(level: number): void {
+    this.level = level;
+  }
+
   destroy(): void {
     this.destroyed = true;
     window.removeEventListener('resize', this.handleResize);
@@ -100,6 +123,7 @@ export class GameScene {
     }
     this.monsters.length = 0;
 
+    this.damageNumbers.destroy();
     this.dustEmitter.destroy();
     this.player.destroy();
     this.app.destroy(true, { children: true, texture: true, baseTexture: true });
@@ -114,7 +138,9 @@ export class GameScene {
   private spawnMonster(): void {
     const width = this.app.screen.width;
     const height = this.app.screen.height;
-    const monster = new Monster(width + 40, height * PLAYER_Y_RATIO);
+    const maxHealth = MONSTER_BASE_HEALTH + (this.level - 1) * MONSTER_HEALTH_PER_LEVEL;
+    const damage = MONSTER_BASE_DAMAGE + Math.floor((this.level - 1) * MONSTER_DAMAGE_PER_LEVEL);
+    const monster = new Monster(width + 40, height * GROUND_Y_RATIO, maxHealth, damage, MONSTER_ATTACK_INTERVAL_SECONDS);
     this.monsters.push(monster);
     this.monstersContainer.addChild(monster.container);
   }
@@ -131,20 +157,49 @@ export class GameScene {
 
     const deltaMS = this.app.ticker.deltaMS;
     const deltaSeconds = deltaMS / 1000;
-    const speed = BASE_MOVE_SPEED * this.speedMultiplier;
 
     const dayFactor = this.dayNightCycle.update(deltaMS);
     this.nightOverlay.alpha = (1 - dayFactor) * NIGHT_OVERLAY_MAX_ALPHA;
     this.app.renderer.background.color = lerpColor(NIGHT_BACKGROUND_COLOR, DAY_BACKGROUND_COLOR, dayFactor);
 
+    // Find the nearest monster within melee range; only it engages the player 1:1,
+    // but every monster currently in range still gets to swing back.
+    const playerX = this.player.feetPosition.x;
+    let engaged: Monster | null = null;
+    let engagedDistance = Infinity;
+    for (const monster of this.monsters) {
+      const distance = monster.x - playerX;
+      const inRange = distance <= ATTACK_RANGE;
+      monster.setInRange(inRange);
+      if (inRange && distance < engagedDistance) {
+        engagedDistance = distance;
+        engaged = monster;
+      }
+    }
+
+    const combatActive = engaged !== null;
+    const speed = combatActive ? 0 : BASE_MOVE_SPEED * this.speedMultiplier;
+
     this.background.update(deltaSeconds, speed, dayFactor);
+    this.player.setCombat(combatActive);
     this.player.update(deltaSeconds, this.speedMultiplier);
     this.dustEmitter.update(deltaSeconds, speed);
+    this.damageNumbers.update(deltaSeconds);
 
-    if (this.player.consumeFootstep()) {
-      const feet = this.player.feetPosition;
-      const count = DUST_PER_STEP_MIN + Math.floor(Math.random() * (DUST_PER_STEP_MAX - DUST_PER_STEP_MIN + 1));
-      this.dustEmitter.spawnBurst(feet.x, feet.y, count);
+    if (!combatActive) {
+      if (this.player.consumeFootstep()) {
+        const feet = this.player.feetPosition;
+        const count = DUST_PER_STEP_MIN + Math.floor(Math.random() * (DUST_PER_STEP_MAX - DUST_PER_STEP_MIN + 1));
+        this.dustEmitter.spawnBurst(feet.x, feet.y, count);
+      }
+
+      this.regenTimer += deltaSeconds;
+      if (this.regenTimer >= REGEN_TICK_INTERVAL) {
+        this.regenTimer -= REGEN_TICK_INTERVAL;
+        this.callbacks.onPlayerRegen(REGEN_PER_SECOND * REGEN_TICK_INTERVAL);
+      }
+    } else {
+      this.regenTimer = 0;
     }
 
     this.spawnTimer += deltaMS;
@@ -157,15 +212,26 @@ export class GameScene {
       const monster = this.monsters[i];
       monster.update(deltaSeconds, speed);
 
-      if (CollisionManager.checkCollision(this.player, monster)) {
-        monster.destroy();
-        this.monsters.splice(i, 1);
-        this.player.playAttack();
-        this.callbacks.onMonsterKilled();
-        continue;
+      if (monster === engaged && this.player.consumeAttackTick()) {
+        const top = monster.topPosition;
+        this.damageNumbers.spawn(top.x, top.y, this.playerDamage, 0xffe066);
+
+        if (monster.takeDamage(this.playerDamage)) {
+          monster.destroy();
+          this.monsters.splice(i, 1);
+          this.callbacks.onMonsterKilled();
+          continue;
+        }
       }
 
-      if (monster.container.x < MONSTER_DESPAWN_X) {
+      if (monster.consumeAttackTick()) {
+        this.callbacks.onPlayerDamaged(monster.damage);
+        this.player.flashDamage();
+        const head = this.player.headPosition;
+        this.damageNumbers.spawn(head.x, head.y, monster.damage, 0xff5555);
+      }
+
+      if (monster.x < MONSTER_DESPAWN_X) {
         monster.destroy();
         this.monsters.splice(i, 1);
         this.callbacks.onMonsterEscaped();

@@ -3,6 +3,8 @@ import * as PIXI from 'pixi.js';
 type DrawFn = (g: PIXI.Graphics, width: number, height: number) => void;
 
 const SEGMENT_COUNT = 3;
+const GROUND_Y_RATIO = 0.84;
+const TREE_BASE_Y_RATIO = 0.8;
 
 class ParallaxLayer {
   readonly container: PIXI.Container;
@@ -78,10 +80,10 @@ class CelestialLayer {
     const y = height * 0.16;
 
     this.sun = new PIXI.Graphics();
-    this.sun.beginFill(0xfff0a3, 0.35);
+    this.sun.beginFill(0xffb15c, 0.35);
     this.sun.drawCircle(0, 0, 44);
     this.sun.endFill();
-    this.sun.beginFill(0xfff0a3);
+    this.sun.beginFill(0xffc978);
     this.sun.drawCircle(0, 0, 28);
     this.sun.endFill();
     this.sun.x = x;
@@ -140,63 +142,86 @@ function drawCloud(g: PIXI.Graphics, x: number, y: number): void {
 
 function drawMountain(g: PIXI.Graphics, x: number, baseY: number, width: number, height: number): void {
   g.moveTo(x - width / 2, baseY);
+  g.lineTo(x - width / 6, baseY - height * 0.55);
   g.lineTo(x, baseY - height);
+  g.lineTo(x + width / 6, baseY - height * 0.55);
   g.lineTo(x + width / 2, baseY);
   g.closePath();
 }
 
 function drawSky(g: PIXI.Graphics, width: number, height: number): void {
-  g.beginFill(0xbfe6ff);
-  g.drawRect(0, 0, width, height * 0.75);
+  const bandBottom = height * TREE_BASE_Y_RATIO;
+
+  g.beginFill(0x241a35);
+  g.drawRect(0, 0, width, bandBottom * 0.4);
   g.endFill();
 
-  g.beginFill(0xffffff, 0.9);
+  g.beginFill(0x3a2c50);
+  g.drawRect(0, bandBottom * 0.4, width, bandBottom * 0.35);
+  g.endFill();
+
+  g.beginFill(0x6a4a63);
+  g.drawRect(0, bandBottom * 0.75, width, bandBottom * 0.25);
+  g.endFill();
+
+  g.beginFill(0xcbb8d9, 0.3);
   drawCloud(g, width * 0.15, height * 0.18);
   drawCloud(g, width * 0.55, height * 0.26);
   drawCloud(g, width * 0.85, height * 0.14);
   g.endFill();
 
-  g.beginFill(0x8fb9a8, 0.6);
+  g.beginFill(0x352a49, 0.85);
   drawMountain(g, width * 0.1, height * 0.55, 160, 90);
   g.endFill();
 
-  g.beginFill(0x8fb9a8, 0.6);
+  g.beginFill(0x352a49, 0.85);
   drawMountain(g, width * 0.45, height * 0.55, 200, 120);
   g.endFill();
 
-  g.beginFill(0x8fb9a8, 0.6);
+  g.beginFill(0x352a49, 0.85);
   drawMountain(g, width * 0.8, height * 0.55, 170, 100);
   g.endFill();
 }
 
+function drawPineCluster(g: PIXI.Graphics, x: number, baseY: number): void {
+  g.drawPolygon([x - 26, baseY, x + 26, baseY, x, baseY - 22]);
+  g.drawPolygon([x - 20, baseY - 14, x + 20, baseY - 14, x, baseY - 36]);
+  g.drawPolygon([x - 14, baseY - 28, x + 14, baseY - 28, x, baseY - 48]);
+}
+
 function drawTrees(g: PIXI.Graphics, width: number, height: number): void {
-  const baseY = height * 0.78;
+  const baseY = height * TREE_BASE_Y_RATIO;
   const count = 6;
 
   for (let i = 0; i < count; i++) {
     const x = (width / count) * i + 40;
-    const trunkHeight = 50 + (i % 3) * 10;
+    const trunkHeight = 26 + (i % 3) * 6;
 
-    g.beginFill(0x6b4226);
+    g.beginFill(0x4a2e22);
     g.drawRect(x - 5, baseY - trunkHeight, 10, trunkHeight);
     g.endFill();
 
-    g.beginFill(0x2f7a3d);
-    g.drawCircle(x, baseY - trunkHeight - 10, 34);
-    g.drawCircle(x - 20, baseY - trunkHeight + 4, 24);
-    g.drawCircle(x + 20, baseY - trunkHeight + 4, 24);
+    g.beginFill(0x1f4d3d);
+    drawPineCluster(g, x, baseY - trunkHeight);
     g.endFill();
   }
 }
 
 function drawGround(g: PIXI.Graphics, width: number, height: number): void {
-  const groundY = height * 0.82;
+  const groundY = height * GROUND_Y_RATIO;
 
-  g.beginFill(0x6fbf5e);
+  g.beginFill(0x3f6b4a);
   g.drawRect(0, groundY, width, height - groundY);
   g.endFill();
 
-  g.beginFill(0x5aa64c);
+  g.beginFill(0x5a4632, 0.55);
+  for (let i = 0; i < 5; i++) {
+    const x = (width / 5) * i + 20;
+    g.drawEllipse(x, groundY + 16, 22, 6);
+  }
+  g.endFill();
+
+  g.beginFill(0x2f5238);
   for (let i = 0; i < 20; i++) {
     const x = (width / 20) * i + (i % 2 === 0 ? 6 : 0);
     g.drawRect(x, groundY, 4, 14);

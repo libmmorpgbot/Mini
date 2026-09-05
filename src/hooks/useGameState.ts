@@ -13,6 +13,8 @@ const GEMS_PER_LEVEL = 1;
 
 type Action =
   | { type: 'KILL_MONSTER' }
+  | { type: 'TAKE_DAMAGE'; amount: number }
+  | { type: 'REGEN'; amount: number }
   | { type: 'ACTIVATE_BOOST' }
   | { type: 'DEACTIVATE_BOOST' }
   | { type: 'RESET'; baseHealth: number };
@@ -50,6 +52,14 @@ function reducer(state: GameState, action: Action): GameState {
 
       return { ...state, gold, gems, level, xp, health, maxHealth, speed };
     }
+    case 'TAKE_DAMAGE': {
+      const health = state.health - action.amount;
+      // A hit that would be lethal instead knocks the hero back to full health --
+      // combat has real stakes (the bar visibly drops) without a punishing death/respawn flow.
+      return { ...state, health: health <= 0 ? state.maxHealth : health };
+    }
+    case 'REGEN':
+      return { ...state, health: Math.min(state.maxHealth, state.health + action.amount) };
     case 'ACTIVATE_BOOST':
       return { ...state, boostActive: true };
     case 'DEACTIVATE_BOOST':
@@ -79,6 +89,8 @@ export function useGameState(character: CharacterClass) {
   }, [character.id, character.baseHealth]);
 
   const killMonster = useCallback(() => dispatch({ type: 'KILL_MONSTER' }), []);
+  const takeDamage = useCallback((amount: number) => dispatch({ type: 'TAKE_DAMAGE', amount }), []);
+  const regen = useCallback((amount: number) => dispatch({ type: 'REGEN', amount }), []);
 
   const activateBoost = useCallback(() => {
     setBoostReady((ready) => {
@@ -108,5 +120,5 @@ export function useGameState(character: CharacterClass) {
 
   const effectiveSpeed = state.speed * (state.boostActive ? BOOST_MULTIPLIER : 1);
 
-  return { state, effectiveSpeed, killMonster, activateBoost, boostReady };
+  return { state, effectiveSpeed, killMonster, takeDamage, regen, activateBoost, boostReady };
 }

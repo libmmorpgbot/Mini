@@ -22,7 +22,8 @@ interface GameShellProps {
 function GameShell({ character, activeTab, onChangeTab, onChangeCharacter, onClose }: GameShellProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<GameScene | null>(null);
-  const { state, effectiveSpeed, killMonster, activateBoost, boostReady } = useGameState(character);
+  const { state, effectiveSpeed, killMonster, takeDamage, regen, activateBoost, boostReady } =
+    useGameState(character);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -30,6 +31,8 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter, onClo
     const scene = new GameScene(hostRef.current, character, {
       onMonsterKilled: killMonster,
       onMonsterEscaped: () => {},
+      onPlayerDamaged: takeDamage,
+      onPlayerRegen: regen,
     });
     sceneRef.current = scene;
 
@@ -43,6 +46,10 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter, onClo
   useEffect(() => {
     sceneRef.current?.setSpeedMultiplier(effectiveSpeed);
   }, [effectiveSpeed]);
+
+  useEffect(() => {
+    sceneRef.current?.setLevel(state.level);
+  }, [state.level]);
 
   return (
     <div className="app-root">

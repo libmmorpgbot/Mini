@@ -27,6 +27,7 @@ export const CHARACTERS: CharacterClass[] = [
     nameAccusative: 'Воина',
     title: 'Крепкий боец с мечом и щитом',
     baseHealth: 140,
+    baseDamage: 16,
     accentColor: 0xd1495b,
     animations: {
       idle: { src: warriorIdle, frameWidth: 96, frameHeight: 64, frameCount: 5, fps: 6 },
@@ -40,6 +41,7 @@ export const CHARACTERS: CharacterClass[] = [
     nameAccusative: 'Мага',
     title: 'Владеет стихийной магией',
     baseHealth: 90,
+    baseDamage: 22,
     accentColor: 0x2a9d8f,
     animations: {
       idle: { src: mageIdle, frameWidth: 96, frameHeight: 64, frameCount: 5, fps: 6 },
@@ -53,6 +55,7 @@ export const CHARACTERS: CharacterClass[] = [
     nameAccusative: 'Ассасина',
     title: 'Бесшумен и смертоносен',
     baseHealth: 100,
+    baseDamage: 20,
     accentColor: 0x6c3fa8,
     animations: {
       idle: { src: assassinIdle, frameWidth: 96, frameHeight: 96, frameCount: 5, fps: 6 },
@@ -66,6 +69,7 @@ export const CHARACTERS: CharacterClass[] = [
     nameAccusative: 'Лучника',
     title: 'Разит цели издалека',
     baseHealth: 110,
+    baseDamage: 15,
     accentColor: 0xb3542c,
     animations: {
       idle: { src: archerIdle, frameWidth: 96, frameHeight: 80, frameCount: 14, fps: 8 },
@@ -79,6 +83,7 @@ export const CHARACTERS: CharacterClass[] = [
     nameAccusative: 'Жнеца',
     title: 'Пылающий клинок, несущий гибель',
     baseHealth: 130,
+    baseDamage: 19,
     accentColor: 0xa11d33,
     animations: {
       idle: { src: reaperIdle, frameWidth: 128, frameHeight: 108, frameCount: 6, fps: 6 },
