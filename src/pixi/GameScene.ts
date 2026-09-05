@@ -5,6 +5,7 @@ import { Monster } from './Monster';
 import { CollisionManager } from './CollisionManager';
 import { DustEmitter } from './DustParticles';
 import { DayNightCycle, lerpColor } from './DayNightCycle';
+import type { CharacterClass } from '../types';
 
 export interface GameSceneCallbacks {
   onMonsterKilled: () => void;
@@ -42,7 +43,7 @@ export class GameScene {
   private nextSpawnDelay = 0;
   private destroyed = false;
 
-  constructor(host: HTMLDivElement, callbacks: GameSceneCallbacks) {
+  constructor(host: HTMLDivElement, character: CharacterClass, callbacks: GameSceneCallbacks) {
     this.host = host;
     this.callbacks = callbacks;
 
@@ -68,7 +69,7 @@ export class GameScene {
     this.dustEmitter = new DustEmitter();
     worldContainer.addChild(this.dustEmitter.container);
 
-    this.player = new Player(width * PLAYER_X_RATIO, height * PLAYER_Y_RATIO);
+    this.player = new Player(width * PLAYER_X_RATIO, height * PLAYER_Y_RATIO, character);
     worldContainer.addChild(this.player.container);
 
     this.monstersContainer = new PIXI.Container();
@@ -159,6 +160,7 @@ export class GameScene {
       if (CollisionManager.checkCollision(this.player, monster)) {
         monster.destroy();
         this.monsters.splice(i, 1);
+        this.player.playAttack();
         this.callbacks.onMonsterKilled();
         continue;
       }

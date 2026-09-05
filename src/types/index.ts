@@ -1,8 +1,39 @@
+export interface CharacterAnimation {
+  src: string;
+  frameWidth: number;
+  frameHeight: number;
+  frameCount: number;
+  /** Playback speed of this animation, in frames per second. */
+  fps: number;
+}
+
+export interface CharacterClass {
+  id: string;
+  name: string;
+  /** Accusative form of `name`, for phrases like "В бой за {nameAccusative}". */
+  nameAccusative: string;
+  title: string;
+  baseHealth: number;
+  /** Accent color used for this character's UI highlights (hex, e.g. 0xff0000). */
+  accentColor: number;
+  animations: {
+    idle: CharacterAnimation;
+    run: CharacterAnimation;
+    attack: CharacterAnimation;
+  };
+}
+
 export interface GameState {
+  /** Constant for the run, captured from the chosen character at (re)start. */
+  baseHealth: number;
   gold: number;
+  gems: number;
   level: number;
-  kills: number;
-  /** Base run-speed multiplier, 1 = 100%. Grows +5% per level. */
+  xp: number;
+  xpToNextLevel: number;
+  health: number;
+  maxHealth: number;
+  /** Run-speed multiplier, 1 = 100%. Grows +5% per level. */
   speed: number;
   boostActive: boolean;
 }

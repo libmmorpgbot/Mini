@@ -1,23 +1,44 @@
+import type { CharacterClass, GameState } from '../types';
+import { staticFrameStyle } from '../utils/characterVisuals';
+
 interface HUDProps {
-  gold: number;
-  level: number;
+  character: CharacterClass;
+  state: GameState;
   speed: number;
 }
 
-export function HUD({ gold, level, speed }: HUDProps) {
+const AVATAR_HEIGHT = 44;
+
+export function HUD({ character, state, speed }: HUDProps) {
+  const healthPercent = state.maxHealth > 0 ? Math.min(100, (state.health / state.maxHealth) * 100) : 0;
+  const xpPercent = state.xpToNextLevel > 0 ? Math.min(100, (state.xp / state.xpToNextLevel) * 100) : 0;
+
   return (
-    <div className="hud">
-      <div className="hud-item">
-        <span className="hud-label">Золото</span>
-        <span className="hud-value">💰 {gold}</span>
+    <div className="header">
+      <div className="header-avatar-wrap">
+        <div className="header-avatar" style={staticFrameStyle(character.animations.idle, AVATAR_HEIGHT)} />
+        <span className="header-level-badge">{state.level}</span>
       </div>
-      <div className="hud-item">
-        <span className="hud-label">Уровень</span>
-        <span className="hud-value">⭐ {level}</span>
+
+      <div className="header-bars">
+        <div className="stat-bar hp-bar">
+          <div className="stat-bar-fill" style={{ width: `${healthPercent}%` }} />
+          <span className="stat-bar-label">
+            ❤ {Math.round(state.health)}/{state.maxHealth}
+          </span>
+        </div>
+        <div className="stat-bar xp-bar">
+          <div className="stat-bar-fill" style={{ width: `${xpPercent}%` }} />
+          <span className="stat-bar-label">
+            ⭐ {state.xp}/{state.xpToNextLevel}
+          </span>
+        </div>
       </div>
-      <div className="hud-item">
-        <span className="hud-label">Скорость</span>
-        <span className="hud-value">⚡ {Math.round(speed * 100)}%</span>
+
+      <div className="header-balances">
+        <div className="balance-chip">💰 {state.gold}</div>
+        <div className="balance-chip">💎 {state.gems}</div>
+        <div className="balance-chip">⚡ {Math.round(speed * 100)}%</div>
       </div>
     </div>
   );
