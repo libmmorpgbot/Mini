@@ -42,24 +42,91 @@ class ParallaxLayer {
 export class ParallaxBackground {
   readonly container: PIXI.Container;
   private readonly layers: ParallaxLayer[];
+  private readonly celestial: CelestialLayer;
 
   constructor(width: number, height: number) {
     this.container = new PIXI.Container();
 
-    this.layers = [
-      new ParallaxLayer(width, height, 0.15, drawSky),
-      new ParallaxLayer(width, height, 0.45, drawTrees),
-      new ParallaxLayer(width, height, 1, drawGround),
-    ];
+    const skyLayer = new ParallaxLayer(width, height, 0.15, drawSky);
+    const treesLayer = new ParallaxLayer(width, height, 0.45, drawTrees);
+    const groundLayer = new ParallaxLayer(width, height, 1, drawGround);
+    this.layers = [skyLayer, treesLayer, groundLayer];
+    this.celestial = new CelestialLayer(width, height);
 
-    for (const layer of this.layers) {
-      this.container.addChild(layer.container);
-    }
+    this.container.addChild(skyLayer.container, this.celestial.container, treesLayer.container, groundLayer.container);
   }
 
-  update(deltaSeconds: number, baseSpeed: number): void {
+  update(deltaSeconds: number, baseSpeed: number, dayFactor: number): void {
     for (const layer of this.layers) {
       layer.update(deltaSeconds, baseSpeed);
+    }
+    this.celestial.update(deltaSeconds, dayFactor);
+  }
+}
+
+class CelestialLayer {
+  readonly container: PIXI.Container;
+  private readonly sun: PIXI.Graphics;
+  private readonly moon: PIXI.Graphics;
+  private readonly starsContainer: PIXI.Container;
+  private readonly stars: { graphic: PIXI.Graphics; baseAlpha: number; speed: number; phase: number }[] = [];
+
+  constructor(width: number, height: number) {
+    this.container = new PIXI.Container();
+
+    const x = width * 0.8;
+    const y = height * 0.16;
+
+    this.sun = new PIXI.Graphics();
+    this.sun.beginFill(0xfff0a3, 0.35);
+    this.sun.drawCircle(0, 0, 44);
+    this.sun.endFill();
+    this.sun.beginFill(0xfff0a3);
+    this.sun.drawCircle(0, 0, 28);
+    this.sun.endFill();
+    this.sun.x = x;
+    this.sun.y = y;
+
+    this.moon = new PIXI.Graphics();
+    this.moon.beginFill(0xe8eef7);
+    this.moon.drawCircle(0, 0, 22);
+    this.moon.endFill();
+    this.moon.beginFill(0xc9d6e8);
+    this.moon.drawCircle(-8, -6, 5);
+    this.moon.drawCircle(6, 4, 4);
+    this.moon.endFill();
+    this.moon.x = x;
+    this.moon.y = y;
+
+    this.starsContainer = new PIXI.Container();
+    for (let i = 0; i < 25; i++) {
+      const graphic = new PIXI.Graphics();
+      const radius = 1 + Math.random() * 1.5;
+      graphic.beginFill(0xffffff);
+      graphic.drawCircle(0, 0, radius);
+      graphic.endFill();
+      graphic.x = Math.random() * width;
+      graphic.y = Math.random() * height * 0.6;
+      this.starsContainer.addChild(graphic);
+      this.stars.push({
+        graphic,
+        baseAlpha: 0.4 + Math.random() * 0.6,
+        speed: 1 + Math.random() * 2,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+
+    this.container.addChild(this.starsContainer, this.sun, this.moon);
+  }
+
+  update(deltaSeconds: number, dayFactor: number): void {
+    this.sun.alpha = dayFactor;
+    this.moon.alpha = 1 - dayFactor;
+    this.starsContainer.alpha = 1 - dayFactor;
+
+    for (const star of this.stars) {
+      star.phase += deltaSeconds * star.speed;
+      star.graphic.alpha = star.baseAlpha * (0.6 + 0.4 * Math.sin(star.phase));
     }
   }
 }
