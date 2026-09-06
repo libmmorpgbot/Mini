@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { lerpColor, luminance } from '../utils/color';
+import { lerpColor } from '../utils/color';
 
 type DrawFn = (g: PIXI.Graphics, width: number, height: number) => void;
 
@@ -212,101 +212,6 @@ function drawGradientRect(
   }
 }
 
-/** Two-tone "blob" -- a base shadow disc plus an offset highlight disc -- reads as a lit clump (bush, rock, leaf cluster) instead of a flat circle. */
-function drawBlob(g: PIXI.Graphics, x: number, y: number, radius: number, base: number, highlight: number): void {
-  g.beginFill(base, 0.92);
-  g.drawCircle(x, y, radius);
-  g.endFill();
-
-  g.beginFill(highlight, 0.5);
-  g.drawCircle(x - radius * 0.35, y - radius * 0.35, radius * 0.45);
-  g.endFill();
-}
-
-/** A little fan of blades growing up from (x, y) -- the classic pixel-art grass tuft. */
-function drawGrassTuft(g: PIXI.Graphics, x: number, y: number, size: number, color: number, alpha: number): void {
-  g.lineStyle(Math.max(1, size * 0.3), color, alpha);
-  g.moveTo(x, y);
-  g.lineTo(x - size * 0.45, y - size);
-  g.moveTo(x, y);
-  g.lineTo(x, y - size * 1.2);
-  g.moveTo(x, y);
-  g.lineTo(x + size * 0.45, y - size);
-  g.lineStyle(0);
-}
-
-/** A rounded cobblestone with its own shadow + highlight, for a worn path/road. */
-function drawCobble(
-  g: PIXI.Graphics,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  base: number,
-  highlight: number,
-  shadow: number
-): void {
-  const r = Math.min(w, h) * 0.4;
-
-  g.beginFill(shadow, 0.4);
-  g.drawRoundedRect(x - w / 2, y - h / 2 + h * 0.15, w, h, r);
-  g.endFill();
-
-  g.beginFill(base, 0.9);
-  g.drawRoundedRect(x - w / 2, y - h / 2, w, h * 0.85, r);
-  g.endFill();
-
-  g.beginFill(highlight, 0.45);
-  g.drawRoundedRect(x - w / 2 + w * 0.12, y - h / 2 + h * 0.08, w * 0.4, h * 0.3, r * 0.6);
-  g.endFill();
-}
-
-/** A small twinkling star/ember -- a cross of thin strokes plus a bright core. */
-function drawSparkle(g: PIXI.Graphics, x: number, y: number, size: number, color: number, alpha: number): void {
-  g.lineStyle(Math.max(1, size * 0.3), color, alpha * 0.7);
-  g.moveTo(x - size, y);
-  g.lineTo(x + size, y);
-  g.moveTo(x, y - size);
-  g.lineTo(x, y + size);
-  g.lineStyle(0);
-
-  g.beginFill(color, alpha);
-  g.drawCircle(x, y, size * 0.35);
-  g.endFill();
-}
-
-/** Mortar lines across a rect -- staggered coursing reads as brick/stone masonry. */
-function drawBrickCourses(
-  g: PIXI.Graphics,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  color: number,
-  rowHeight: number,
-  brickWidth: number
-): void {
-  g.lineStyle(1, color, 0.35);
-
-  const rows = Math.ceil(height / rowHeight);
-  for (let r = 0; r <= rows; r++) {
-    const ry = y + r * rowHeight;
-    g.moveTo(x, ry);
-    g.lineTo(x + width, ry);
-  }
-
-  for (let r = 0; r < rows; r++) {
-    const ry = y + r * rowHeight;
-    const offset = (r % 2) * (brickWidth / 2);
-    for (let bx = x + offset; bx < x + width; bx += brickWidth) {
-      g.moveTo(bx, ry);
-      g.lineTo(bx, Math.min(ry + rowHeight, y + height));
-    }
-  }
-
-  g.lineStyle(0);
-}
-
 function makeDrawCloudShape(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     const cx = width / 2;
@@ -327,18 +232,6 @@ function makeDrawSky(palette: ParallaxPalette): DrawFn {
 
     drawGradientRect(g, 0, 0, width, skyHeight, [palette.skyTop, palette.skyMid, palette.skyBottom], 14);
 
-    // Dark biomes (night skies, hellscapes) get a hand-placed starfield --
-    // sparse, twinkling points read as "night" far better than fine noise.
-    if (luminance(palette.skyTop) < 0.28) {
-      const starCount = Math.round(width / 22);
-      for (let i = 0; i < starCount; i++) {
-        const x = Math.random() * width;
-        const y = Math.random() * skyHeight * 0.68;
-        const big = Math.random() < 0.18;
-        drawSparkle(g, x, y, big ? 2.2 : 1.1, big ? palette.accent : palette.cloud, big ? 0.9 : 0.55);
-      }
-    }
-
     const sunX = width * SUN_X_RATIO;
     const sunY = height * SUN_Y_RATIO;
 
@@ -350,13 +243,6 @@ function makeDrawSky(palette: ParallaxPalette): DrawFn {
     g.drawCircle(sunX, sunY, 24);
     g.endFill();
   };
-}
-
-function hillCurveY(x: number, width: number, height: number, baseRatio: number, ampRatio: number, phase: number): number {
-  const baseY = height * baseRatio;
-  const amplitude = height * ampRatio;
-  const t = x / width;
-  return baseY - amplitude * (0.5 + 0.5 * Math.sin(t * Math.PI * 2.2 + phase));
 }
 
 /**
@@ -372,13 +258,15 @@ function drawHillSilhouette(
   phase: number,
   color: number
 ): void {
+  const baseY = height * baseRatio;
+  const amplitude = height * ampRatio;
   const segments = 24;
   const points: number[] = [];
 
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
     const x = t * width;
-    const y = hillCurveY(x, width, height, baseRatio, ampRatio, phase);
+    const y = baseY - amplitude * (0.5 + 0.5 * Math.sin(t * Math.PI * 2.2 + phase));
     points.push(x, y);
   }
 
@@ -390,117 +278,23 @@ function drawHillSilhouette(
   g.endFill();
 }
 
-/** Bush/rock clumps clinging to the ridge line, evenly spaced with light jitter so they read as deliberate foliage rather than noise. */
-function scatterRidgeBlobs(
-  g: PIXI.Graphics,
-  width: number,
-  height: number,
-  baseRatio: number,
-  ampRatio: number,
-  phase: number,
-  base: number,
-  highlight: number,
-  cellSize: number,
-  minRadius: number,
-  maxRadius: number,
-  bandRatio: number
-): void {
-  const cols = Math.ceil(width / cellSize);
-  for (let c = 0; c < cols; c++) {
-    if (Math.random() < 0.25) continue;
-
-    const x = (c + 0.5) * cellSize + (Math.random() - 0.5) * cellSize * 0.6;
-    const curveY = hillCurveY(x, width, height, baseRatio, ampRatio, phase);
-    const band = (height - curveY) * bandRatio;
-    const y = curveY + Math.random() * band;
-    const radius = minRadius + Math.random() * (maxRadius - minRadius);
-
-    drawBlob(g, x, y, radius, base, highlight);
-  }
-}
-
 function makeDrawFarHills(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     drawHillSilhouette(g, width, height, 0.6, 0.07, 0.4, palette.hillFar);
-    scatterRidgeBlobs(
-      g,
-      width,
-      height,
-      0.6,
-      0.07,
-      0.4,
-      palette.hillFar,
-      lerpColor(palette.hillFar, 0xffffff, 0.22),
-      48,
-      2.5,
-      4.5,
-      0.16
-    );
   };
 }
 
 function makeDrawNearHills(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     drawHillSilhouette(g, width, height, 0.74, 0.05, 2.1, palette.hillNear);
-    scatterRidgeBlobs(
-      g,
-      width,
-      height,
-      0.74,
-      0.05,
-      2.1,
-      palette.hillNear,
-      lerpColor(palette.hillNear, palette.accent, 0.3),
-      36,
-      3,
-      6,
-      0.2
-    );
   };
 }
 
 function makeDrawGround(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     const groundY = height * GROUND_Y_RATIO;
-    const groundHeight = height - groundY;
 
-    drawGradientRect(g, 0, groundY, width, groundHeight, [palette.groundTop, palette.groundBottom], 10);
-
-    // A handful of soft dirt/moss patches break up the flat field.
-    const patchDirt = lerpColor(palette.groundBottom, 0x000000, 0.2);
-    const patchMoss = lerpColor(palette.groundTop, palette.accent, 0.25);
-    const patchCount = Math.round(width / 70);
-    for (let i = 0; i < patchCount; i++) {
-      const x = Math.random() * width;
-      const y = groundY + groundHeight * (0.3 + Math.random() * 0.65);
-      const rw = 14 + Math.random() * 18;
-      const rh = rw * (0.32 + Math.random() * 0.18);
-
-      g.beginFill(i % 2 === 0 ? patchDirt : patchMoss, 0.16);
-      g.drawEllipse(x, y, rw, rh);
-      g.endFill();
-    }
-
-    // Grass tufts on a jittered grid, growing taller toward the foreground.
-    const bladeLight = lerpColor(palette.groundTop, palette.accent, 0.35);
-    const bladeDark = lerpColor(palette.groundTop, 0x000000, 0.25);
-    const cell = 16;
-    const cols = Math.ceil(width / cell);
-    const rows = Math.max(1, Math.ceil(groundHeight / cell));
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (Math.random() < 0.35) continue;
-
-        const t = r / Math.max(1, rows - 1);
-        const x = (c + 0.5) * cell + (Math.random() - 0.5) * cell * 0.8;
-        const y = groundY + (r + 0.9) * cell + (Math.random() - 0.5) * cell * 0.5;
-        const size = 2 + t * 4 + Math.random() * 1.5;
-        const color = Math.random() < 0.5 ? bladeLight : bladeDark;
-
-        drawGrassTuft(g, x, y, size, color, 0.5 + t * 0.3);
-      }
-    }
+    drawGradientRect(g, 0, groundY, width, height - groundY, [palette.groundTop, palette.groundBottom], 10);
 
     const laneHeight = height * 0.025;
 
@@ -511,21 +305,6 @@ function makeDrawGround(palette: ParallaxPalette): DrawFn {
     g.beginFill(palette.path, 0.9);
     g.drawRect(0, groundY + 4, width, laneHeight);
     g.endFill();
-
-    // Worn cobbles along the path.
-    const stoneBase = lerpColor(palette.path, 0x000000, 0.15);
-    const stoneHighlight = lerpColor(palette.path, 0xffffff, 0.35);
-    const stoneShadow = lerpColor(palette.path, 0x000000, 0.4);
-    const stoneCount = Math.max(1, Math.round(width / 34));
-
-    for (let i = 0; i < stoneCount; i++) {
-      const x = (i + 0.5) * (width / stoneCount) + (Math.random() - 0.5) * 10;
-      const y = groundY + 4 + laneHeight * (0.35 + Math.random() * 0.4);
-      const w = 5 + Math.random() * 4;
-      const h = w * 0.6;
-
-      drawCobble(g, x, y, w, h, stoneBase, stoneHighlight, stoneShadow);
-    }
   };
 }
 
@@ -556,7 +335,6 @@ function makeDrawTrees(palette: ParallaxPalette): DrawFn {
     const positions = [0.08, 0.24, 0.4, 0.58, 0.74, 0.9];
 
     const color = landmarkColor(palette);
-    const highlight = lerpColor(color, palette.accent, 0.35);
 
     positions.forEach((xRatio, i) => {
       const x = width * xRatio;
@@ -569,12 +347,6 @@ function makeDrawTrees(palette: ParallaxPalette): DrawFn {
       g.drawPolygon([x - w * 0.4, baseY - h * 0.45, x + w * 0.4, baseY - h * 0.45, x, baseY - h * 0.8]);
       g.drawPolygon([x - w * 0.3, baseY - h * 0.7, x + w * 0.3, baseY - h * 0.7, x, baseY - h]);
       g.endFill();
-
-      // Canopy highlight clumps give each tier volume instead of a flat triangle.
-      const tierYs = [baseY - h * 0.35, baseY - h * 0.6, baseY - h * 0.85];
-      tierYs.forEach((ty, tierIndex) => {
-        drawBlob(g, x - w * (0.12 - tierIndex * 0.02), ty, w * 0.13, color, highlight);
-      });
     });
   };
 }
@@ -591,8 +363,6 @@ function makeDrawGraves(palette: ParallaxPalette): DrawFn {
     ];
 
     const color = landmarkColor(palette);
-    const highlight = lerpColor(color, 0xffffff, 0.3);
-    const moss = lerpColor(color, palette.accent, 0.4);
 
     for (const s of stones) {
       const x = width * s.xRatio;
@@ -607,16 +377,6 @@ function makeDrawGraves(palette: ParallaxPalette): DrawFn {
         g.drawRoundedRect(x - w / 2, baseY - h, w, h, w * 0.4);
       }
       g.endFill();
-
-      // A weathering crack and a moss patch at the base read as age, not dirt.
-      g.lineStyle(1, highlight, 0.4);
-      g.moveTo(x - w * 0.15, baseY - h * 0.75);
-      g.lineTo(x + w * 0.12, baseY - h * 0.3);
-      g.lineStyle(0);
-
-      g.beginFill(moss, 0.5);
-      g.drawEllipse(x - w * 0.1, baseY - h * 0.1, w * 0.32, w * 0.18);
-      g.endFill();
     }
   };
 }
@@ -626,7 +386,6 @@ function makeDrawFortress(palette: ParallaxPalette): DrawFn {
     const baseY = height * 0.8;
     const x = width * 0.55;
     const color = landmarkColor(palette);
-    const mortar = lerpColor(color, 0x000000, 0.4);
 
     g.beginFill(color);
     g.drawRect(x - 70, baseY - 46, 140, 46);
@@ -639,13 +398,6 @@ function makeDrawFortress(palette: ParallaxPalette): DrawFn {
       g.drawRect(x + 64 + i * 8, baseY - 76, 6, 8);
     }
     g.endFill();
-
-    // Brick coursing, one call per solid rect so mortar lines never spill
-    // into the gaps between the towers.
-    drawBrickCourses(g, x - 70, baseY - 46, 140, 46, mortar, 10, 18);
-    drawBrickCourses(g, x - 90, baseY - 70, 26, 70, mortar, 10, 13);
-    drawBrickCourses(g, x + 64, baseY - 70, 26, 70, mortar, 10, 13);
-    drawBrickCourses(g, x - 14, baseY - 82, 28, 82, mortar, 10, 14);
 
     g.beginFill(palette.accent, 0.85);
     g.drawPolygon([x, baseY - 82, x + 14, baseY - 78, x, baseY - 74]);
@@ -663,30 +415,15 @@ function makeDrawRift(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     const baseY = height * 0.82;
     const x = width * 0.5;
-    const color = landmarkColor(palette);
-    const highlight = lerpColor(color, palette.accent, 0.3);
 
-    g.beginFill(color);
+    g.beginFill(landmarkColor(palette));
     g.drawPolygon([x - 95, baseY, x - 35, baseY, x - 60, baseY - 65]);
     g.drawPolygon([x + 35, baseY, x + 95, baseY, x + 65, baseY - 75]);
     g.endFill();
 
-    // Rock-face shading, not noise.
-    drawBlob(g, x - 65, baseY - 28, 10, color, highlight);
-    drawBlob(g, x - 45, baseY - 12, 7, color, highlight);
-    drawBlob(g, x + 60, baseY - 36, 11, color, highlight);
-    drawBlob(g, x + 78, baseY - 15, 7, color, highlight);
-
     g.beginFill(palette.accent, 0.85);
     g.drawPolygon([x - 12, baseY, x + 8, baseY, x + 4, baseY - 50, x - 6, baseY - 32]);
     g.endFill();
-
-    // A handful of embers drifting off the crack.
-    for (let i = 0; i < 5; i++) {
-      const ex = x + (Math.random() - 0.5) * 28;
-      const ey = baseY - 20 - Math.random() * 55;
-      drawSparkle(g, ex, ey, 1.5 + Math.random(), palette.accent, 0.8);
-    }
 
     g.beginFill(palette.accent, 0.35);
     g.drawEllipse(x, baseY - 2, 42, 10);
@@ -698,18 +435,10 @@ function makeDrawVolcano(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     const baseY = height * 0.78;
     const x = width * 0.62;
-    const color = landmarkColor(palette);
-    const highlight = lerpColor(color, 0xffffff, 0.15);
 
-    g.beginFill(color);
+    g.beginFill(landmarkColor(palette));
     g.drawPolygon([x - 90, baseY, x + 90, baseY, x + 20, baseY - 100, x - 20, baseY - 100]);
     g.endFill();
-
-    // Slope shading (rock ridges) instead of noise.
-    drawBlob(g, x - 50, baseY - 28, 9, color, highlight);
-    drawBlob(g, x - 25, baseY - 55, 7, color, highlight);
-    drawBlob(g, x + 45, baseY - 34, 9, color, highlight);
-    drawBlob(g, x + 20, baseY - 60, 6, color, highlight);
 
     g.beginFill(palette.accent, 0.9);
     g.drawEllipse(x, baseY - 100, 22, 8);
@@ -718,12 +447,5 @@ function makeDrawVolcano(palette: ParallaxPalette): DrawFn {
     g.beginFill(palette.accent, 0.6);
     g.drawPolygon([x - 8, baseY - 96, x + 8, baseY - 96, x + 16, baseY - 20, x - 16, baseY - 20]);
     g.endFill();
-
-    // Embers rising off the crater.
-    for (let i = 0; i < 4; i++) {
-      const ex = x + (Math.random() - 0.5) * 18;
-      const ey = baseY - 98 - Math.random() * 22;
-      drawSparkle(g, ex, ey, 1.4 + Math.random(), palette.accent, 0.75);
-    }
   };
 }
