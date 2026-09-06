@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { lerpColor } from '../utils/color';
+import { lerpColor, luminance } from '../utils/color';
 
 type DrawFn = (g: PIXI.Graphics, width: number, height: number) => void;
 
@@ -212,6 +212,71 @@ function drawGradientRect(
   }
 }
 
+interface SpeckleTone {
+  color: number;
+  alpha: number;
+}
+
+/**
+ * Scatters small flecks over a rectangular region. Because layers are baked
+ * down to a low-resolution texture (see PIXEL_SIZE) and re-scaled with
+ * nearest-neighbour filtering, flecks smaller than a "pixel" blend into the
+ * surrounding fill during that downsample -- turning into a grainy, textured
+ * dither instead of visible dots.
+ */
+function speckleRect(
+  g: PIXI.Graphics,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  tones: SpeckleTone[],
+  density: number,
+  minSize: number,
+  maxSize: number
+): void {
+  const count = Math.round(width * height * density);
+  for (let i = 0; i < count; i++) {
+    const tone = tones[Math.floor(Math.random() * tones.length)];
+    const size = minSize + Math.random() * (maxSize - minSize);
+    const px = x + Math.random() * width;
+    const py = y + Math.random() * height;
+
+    g.beginFill(tone.color, tone.alpha);
+    g.drawRect(px, py, size, size);
+    g.endFill();
+  }
+}
+
+/** Same idea as speckleRect but sampled uniformly inside a triangle (barycentric). */
+function speckleTriangle(
+  g: PIXI.Graphics,
+  p1: [number, number],
+  p2: [number, number],
+  p3: [number, number],
+  tones: SpeckleTone[],
+  count: number,
+  minSize: number,
+  maxSize: number
+): void {
+  for (let i = 0; i < count; i++) {
+    let r1 = Math.random();
+    let r2 = Math.random();
+    if (r1 + r2 > 1) {
+      r1 = 1 - r1;
+      r2 = 1 - r2;
+    }
+    const x = p1[0] + r1 * (p2[0] - p1[0]) + r2 * (p3[0] - p1[0]);
+    const y = p1[1] + r1 * (p2[1] - p1[1]) + r2 * (p3[1] - p1[1]);
+    const tone = tones[Math.floor(Math.random() * tones.length)];
+    const size = minSize + Math.random() * (maxSize - minSize);
+
+    g.beginFill(tone.color, tone.alpha);
+    g.drawRect(x, y, size, size);
+    g.endFill();
+  }
+}
+
 function makeDrawCloudShape(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     const cx = width / 2;
@@ -232,6 +297,42 @@ function makeDrawSky(palette: ParallaxPalette): DrawFn {
 
     drawGradientRect(g, 0, 0, width, skyHeight, [palette.skyTop, palette.skyMid, palette.skyBottom], 14);
 
+    // Fine grain breaks up the flat gradient bands into something closer to
+    // hazy, textured air instead of a smooth print.
+    speckleRect(
+      g,
+      0,
+      0,
+      width,
+      skyHeight,
+      [
+        { color: lerpColor(palette.skyMid, 0xffffff, 0.5), alpha: 0.06 },
+        { color: lerpColor(palette.skyBottom, 0x000000, 0.35), alpha: 0.05 },
+      ],
+      0.012,
+      1,
+      2
+    );
+
+    // Dark biomes (night skies, hellscapes) read as textured starfields
+    // instead of a flat void.
+    if (luminance(palette.skyTop) < 0.28) {
+      speckleRect(
+        g,
+        0,
+        0,
+        width,
+        skyHeight * 0.75,
+        [
+          { color: palette.cloud, alpha: 0.85 },
+          { color: palette.accent, alpha: 0.6 },
+        ],
+        0.006,
+        1,
+        1.6
+      );
+    }
+
     const sunX = width * SUN_X_RATIO;
     const sunY = height * SUN_Y_RATIO;
 
@@ -243,6 +344,13 @@ function makeDrawSky(palette: ParallaxPalette): DrawFn {
     g.drawCircle(sunX, sunY, 24);
     g.endFill();
   };
+}
+
+function hillCurveY(x: number, width: number, height: number, baseRatio: number, ampRatio: number, phase: number): number {
+  const baseY = height * baseRatio;
+  const amplitude = height * ampRatio;
+  const t = x / width;
+  return baseY - amplitude * (0.5 + 0.5 * Math.sin(t * Math.PI * 2.2 + phase));
 }
 
 /**
@@ -258,15 +366,13 @@ function drawHillSilhouette(
   phase: number,
   color: number
 ): void {
-  const baseY = height * baseRatio;
-  const amplitude = height * ampRatio;
   const segments = 24;
   const points: number[] = [];
 
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
     const x = t * width;
-    const y = baseY - amplitude * (0.5 + 0.5 * Math.sin(t * Math.PI * 2.2 + phase));
+    const y = hillCurveY(x, width, height, baseRatio, ampRatio, phase);
     points.push(x, y);
   }
 
@@ -278,23 +384,99 @@ function drawHillSilhouette(
   g.endFill();
 }
 
+/** Scatters flecks confined to the filled area under the hill's silhouette curve. */
+function speckleHill(
+  g: PIXI.Graphics,
+  width: number,
+  height: number,
+  baseRatio: number,
+  ampRatio: number,
+  phase: number,
+  tones: SpeckleTone[],
+  density: number,
+  minSize: number,
+  maxSize: number
+): void {
+  const count = Math.round(width * height * density);
+  for (let i = 0; i < count; i++) {
+    const px = Math.random() * width;
+    const curveY = hillCurveY(px, width, height, baseRatio, ampRatio, phase);
+    const py = curveY + Math.random() * (height - curveY);
+    const tone = tones[Math.floor(Math.random() * tones.length)];
+    const size = minSize + Math.random() * (maxSize - minSize);
+
+    g.beginFill(tone.color, tone.alpha);
+    g.drawRect(px, py, size, size);
+    g.endFill();
+  }
+}
+
 function makeDrawFarHills(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     drawHillSilhouette(g, width, height, 0.6, 0.07, 0.4, palette.hillFar);
+    speckleHill(
+      g,
+      width,
+      height,
+      0.6,
+      0.07,
+      0.4,
+      [
+        { color: lerpColor(palette.hillFar, 0xffffff, 0.2), alpha: 0.18 },
+        { color: lerpColor(palette.hillFar, 0x000000, 0.25), alpha: 0.16 },
+      ],
+      0.02,
+      1.5,
+      3
+    );
   };
 }
 
 function makeDrawNearHills(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     drawHillSilhouette(g, width, height, 0.74, 0.05, 2.1, palette.hillNear);
+    speckleHill(
+      g,
+      width,
+      height,
+      0.74,
+      0.05,
+      2.1,
+      [
+        { color: lerpColor(palette.hillNear, palette.accent, 0.25), alpha: 0.14 },
+        { color: lerpColor(palette.hillNear, 0x000000, 0.3), alpha: 0.2 },
+      ],
+      0.028,
+      1.5,
+      3.5
+    );
   };
 }
 
 function makeDrawGround(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     const groundY = height * GROUND_Y_RATIO;
+    const groundHeight = height - groundY;
 
-    drawGradientRect(g, 0, groundY, width, height - groundY, [palette.groundTop, palette.groundBottom], 10);
+    drawGradientRect(g, 0, groundY, width, groundHeight, [palette.groundTop, palette.groundBottom], 10);
+
+    // Grass/dirt stipple so the ground reads as broken-up terrain rather
+    // than a smooth two-stop gradient.
+    speckleRect(
+      g,
+      0,
+      groundY,
+      width,
+      groundHeight,
+      [
+        { color: lerpColor(palette.groundTop, palette.accent, 0.3), alpha: 0.28 },
+        { color: lerpColor(palette.groundTop, 0xffffff, 0.2), alpha: 0.16 },
+        { color: lerpColor(palette.groundBottom, 0x000000, 0.35), alpha: 0.3 },
+      ],
+      0.05,
+      1.5,
+      3.5
+    );
 
     const laneHeight = height * 0.025;
 
@@ -305,6 +487,22 @@ function makeDrawGround(palette: ParallaxPalette): DrawFn {
     g.beginFill(palette.path, 0.9);
     g.drawRect(0, groundY + 4, width, laneHeight);
     g.endFill();
+
+    // Pebbles/wear marks along the path.
+    speckleRect(
+      g,
+      0,
+      groundY + 4,
+      width,
+      laneHeight,
+      [
+        { color: lerpColor(palette.path, 0x000000, 0.35), alpha: 0.35 },
+        { color: lerpColor(palette.path, 0xffffff, 0.3), alpha: 0.25 },
+      ],
+      0.06,
+      1,
+      2.5
+    );
   };
 }
 
@@ -335,18 +533,44 @@ function makeDrawTrees(palette: ParallaxPalette): DrawFn {
     const positions = [0.08, 0.24, 0.4, 0.58, 0.74, 0.9];
 
     const color = landmarkColor(palette);
+    const foliageTones: SpeckleTone[] = [
+      { color: lerpColor(color, palette.accent, 0.3), alpha: 0.3 },
+      { color: lerpColor(color, 0x000000, 0.35), alpha: 0.28 },
+    ];
 
     positions.forEach((xRatio, i) => {
       const x = width * xRatio;
       const h = height * (0.15 + (i % 3) * 0.02);
       const w = h * 0.55;
 
+      const tiers: [[number, number], [number, number], [number, number]][] = [
+        [
+          [x - w * 0.5, baseY - h * 0.2],
+          [x + w * 0.5, baseY - h * 0.2],
+          [x, baseY - h * 0.55],
+        ],
+        [
+          [x - w * 0.4, baseY - h * 0.45],
+          [x + w * 0.4, baseY - h * 0.45],
+          [x, baseY - h * 0.8],
+        ],
+        [
+          [x - w * 0.3, baseY - h * 0.7],
+          [x + w * 0.3, baseY - h * 0.7],
+          [x, baseY - h],
+        ],
+      ];
+
       g.beginFill(color);
       g.drawRect(x - w * 0.06, baseY - h * 0.25, w * 0.12, h * 0.25);
-      g.drawPolygon([x - w * 0.5, baseY - h * 0.2, x + w * 0.5, baseY - h * 0.2, x, baseY - h * 0.55]);
-      g.drawPolygon([x - w * 0.4, baseY - h * 0.45, x + w * 0.4, baseY - h * 0.45, x, baseY - h * 0.8]);
-      g.drawPolygon([x - w * 0.3, baseY - h * 0.7, x + w * 0.3, baseY - h * 0.7, x, baseY - h]);
+      for (const [p1, p2, p3] of tiers) {
+        g.drawPolygon([...p1, ...p2, ...p3]);
+      }
       g.endFill();
+
+      for (const [p1, p2, p3] of tiers) {
+        speckleTriangle(g, p1, p2, p3, foliageTones, 10, 1.5, 3);
+      }
     });
   };
 }
@@ -363,6 +587,10 @@ function makeDrawGraves(palette: ParallaxPalette): DrawFn {
     ];
 
     const color = landmarkColor(palette);
+    const stoneTones: SpeckleTone[] = [
+      { color: lerpColor(color, 0xffffff, 0.25), alpha: 0.22 },
+      { color: lerpColor(color, 0x000000, 0.35), alpha: 0.25 },
+    ];
 
     for (const s of stones) {
       const x = width * s.xRatio;
@@ -377,6 +605,8 @@ function makeDrawGraves(palette: ParallaxPalette): DrawFn {
         g.drawRoundedRect(x - w / 2, baseY - h, w, h, w * 0.4);
       }
       g.endFill();
+
+      speckleRect(g, x - w / 2, baseY - h, w, h, stoneTones, 0.3, 1, 2.5);
     }
   };
 }
@@ -399,6 +629,12 @@ function makeDrawFortress(palette: ParallaxPalette): DrawFn {
     }
     g.endFill();
 
+    const stoneTones: SpeckleTone[] = [
+      { color: lerpColor(color, 0xffffff, 0.25), alpha: 0.2 },
+      { color: lerpColor(color, 0x000000, 0.35), alpha: 0.22 },
+    ];
+    speckleRect(g, x - 90, baseY - 82, 180, 82, stoneTones, 0.06, 1, 2.5);
+
     g.beginFill(palette.accent, 0.85);
     g.drawPolygon([x, baseY - 82, x + 14, baseY - 78, x, baseY - 74]);
     g.endFill();
@@ -415,15 +651,39 @@ function makeDrawRift(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     const baseY = height * 0.82;
     const x = width * 0.5;
+    const color = landmarkColor(palette);
 
-    g.beginFill(landmarkColor(palette));
+    g.beginFill(color);
     g.drawPolygon([x - 95, baseY, x - 35, baseY, x - 60, baseY - 65]);
     g.drawPolygon([x + 35, baseY, x + 95, baseY, x + 65, baseY - 75]);
     g.endFill();
 
+    const rockTones: SpeckleTone[] = [
+      { color: lerpColor(color, palette.accent, 0.3), alpha: 0.28 },
+      { color: lerpColor(color, 0x000000, 0.3), alpha: 0.24 },
+    ];
+    speckleTriangle(g, [x - 95, baseY], [x - 35, baseY], [x - 60, baseY - 65], rockTones, 14, 1.5, 3);
+    speckleTriangle(g, [x + 35, baseY], [x + 95, baseY], [x + 65, baseY - 75], rockTones, 14, 1.5, 3);
+
     g.beginFill(palette.accent, 0.85);
     g.drawPolygon([x - 12, baseY, x + 8, baseY, x + 4, baseY - 50, x - 6, baseY - 32]);
     g.endFill();
+
+    // Embers drifting off the crack.
+    speckleRect(
+      g,
+      x - 20,
+      baseY - 70,
+      40,
+      70,
+      [
+        { color: palette.accent, alpha: 0.6 },
+        { color: 0xffffff, alpha: 0.4 },
+      ],
+      0.02,
+      1,
+      2
+    );
 
     g.beginFill(palette.accent, 0.35);
     g.drawEllipse(x, baseY - 2, 42, 10);
@@ -435,10 +695,18 @@ function makeDrawVolcano(palette: ParallaxPalette): DrawFn {
   return (g, width, height) => {
     const baseY = height * 0.78;
     const x = width * 0.62;
+    const color = landmarkColor(palette);
 
-    g.beginFill(landmarkColor(palette));
+    g.beginFill(color);
     g.drawPolygon([x - 90, baseY, x + 90, baseY, x + 20, baseY - 100, x - 20, baseY - 100]);
     g.endFill();
+
+    const rockTones: SpeckleTone[] = [
+      { color: lerpColor(color, 0xffffff, 0.2), alpha: 0.2 },
+      { color: lerpColor(color, 0x000000, 0.3), alpha: 0.26 },
+    ];
+    speckleTriangle(g, [x - 90, baseY], [x + 20, baseY - 100], [x - 20, baseY - 100], rockTones, 14, 1.5, 3.5);
+    speckleTriangle(g, [x - 90, baseY], [x + 90, baseY], [x + 20, baseY - 100], rockTones, 14, 1.5, 3.5);
 
     g.beginFill(palette.accent, 0.9);
     g.drawEllipse(x, baseY - 100, 22, 8);
@@ -447,5 +715,20 @@ function makeDrawVolcano(palette: ParallaxPalette): DrawFn {
     g.beginFill(palette.accent, 0.6);
     g.drawPolygon([x - 8, baseY - 96, x + 8, baseY - 96, x + 16, baseY - 20, x - 16, baseY - 20]);
     g.endFill();
+
+    // Glowing cracks trickling down the slope.
+    speckleTriangle(
+      g,
+      [x - 90, baseY],
+      [x + 20, baseY - 100],
+      [x - 20, baseY - 100],
+      [
+        { color: palette.accent, alpha: 0.5 },
+        { color: 0xffffff, alpha: 0.3 },
+      ],
+      6,
+      1,
+      2
+    );
   };
 }
