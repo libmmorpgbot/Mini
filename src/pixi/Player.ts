@@ -9,7 +9,15 @@ const DAMAGE_FLASH_DURATION = 0.15;
 
 const HEALTH_BAR_WIDTH = 46;
 const HEALTH_BAR_HEIGHT = 5;
-const HEALTH_BAR_GAP = 10; // px above the sprite's actual (bottomPadding-adjusted) top edge
+
+/**
+ * Anchor for the health bar / projectile launch point, as a flat fraction of
+ * TARGET_HEIGHT -- deliberately ignoring each animation's transparent
+ * bottomPadding (which varies per sprite sheet and made this drift wildly),
+ * in favour of a simple, constant "middle of the character" reference.
+ */
+const CENTER_Y = -TARGET_HEIGHT / 2;
+const HEALTH_BAR_Y = CENTER_Y - 20;
 
 function sliceFrames(anim: CharacterAnimation): PIXI.Texture[] {
   const baseTexture = PIXI.BaseTexture.from(anim.src, { scaleMode: PIXI.SCALE_MODES.NEAREST });
@@ -64,13 +72,8 @@ export class Player {
 
     this.healthBarFill = new PIXI.Graphics();
     this.healthBarWrap = this.createHealthBar();
-    this.healthBarWrap.y = this.spriteTopY() - HEALTH_BAR_GAP;
+    this.healthBarWrap.y = HEALTH_BAR_Y;
     this.container.addChild(this.sprite, this.healthBarWrap);
-  }
-
-  /** The sprite's current rendered top edge, in container-local space (accounts for bottomPadding). */
-  private spriteTopY(): number {
-    return this.sprite.y - TARGET_HEIGHT;
   }
 
   private createHealthBar(): PIXI.Container {
@@ -141,7 +144,6 @@ export class Player {
     this.sprite.y = def.bottomPadding * this.scale;
     this.sprite.loop = true;
     this.sprite.gotoAndPlay(0);
-    this.healthBarWrap.y = this.spriteTopY() - HEALTH_BAR_GAP;
 
     if (next === 'attack') {
       this.prevAttackFrame = -1;
@@ -173,7 +175,7 @@ export class Player {
   }
 
   get headPosition(): { x: number; y: number } {
-    return { x: this.container.x, y: this.container.y + this.spriteTopY() };
+    return { x: this.container.x, y: this.container.y + CENTER_Y };
   }
 
   destroy(): void {
