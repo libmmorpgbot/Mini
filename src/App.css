@@ -269,6 +269,113 @@
   font-weight: 700;
 }
 
+/* ---------- Map ---------- */
+
+.map-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+}
+
+.map-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.map-subtitle {
+  margin: 0 0 18px;
+  font-size: 12px;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.map-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.map-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-card.active {
+  border-color: #ffb703;
+}
+
+.map-card.locked {
+  filter: grayscale(0.6);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.map-card-icon {
+  flex: 0 0 auto;
+  font-size: 32px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.map-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.map-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.map-card-desc {
+  font-size: 11px;
+  opacity: 0.85;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.map-card-level {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffd166;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.map-card-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #ffb703;
+  color: #1c1c1c;
+}
+
+.map-card-lock {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 16px;
+}
+
 /* ---------- Character select ---------- */
 
 .char-select-screen {

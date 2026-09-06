@@ -23,6 +23,8 @@ export interface ParallaxPalette {
   cloud: number;
 }
 
+export type Landmark = 'trees' | 'graves' | 'fortress' | 'rift' | 'volcano';
+
 export const DEFAULT_PALETTE: ParallaxPalette = {
   skyTop: 0x3d7ab8,
   skyMid: 0x6fa8d8,
@@ -146,7 +148,13 @@ export class ParallaxBackground {
   private readonly layers: ParallaxLayer[];
   private readonly clouds: CloudLayer;
 
-  constructor(renderer: PIXI.IRenderer, width: number, height: number, palette: ParallaxPalette = DEFAULT_PALETTE) {
+  constructor(
+    renderer: PIXI.IRenderer,
+    width: number,
+    height: number,
+    palette: ParallaxPalette = DEFAULT_PALETTE,
+    landmark?: Landmark
+  ) {
     this.container = new PIXI.Container();
 
     this.layers = [
@@ -161,6 +169,13 @@ export class ParallaxBackground {
     this.container.addChild(this.clouds.container);
     this.container.addChild(this.layers[1].container);
     this.container.addChild(this.layers[2].container);
+
+    if (landmark) {
+      const landmarkLayer = new ParallaxLayer(renderer, width, height, 0.65, makeDrawLandmark(landmark, palette));
+      this.layers.push(landmarkLayer);
+      this.container.addChild(landmarkLayer.container);
+    }
+
     this.container.addChild(this.layers[3].container);
   }
 
@@ -289,6 +304,148 @@ function makeDrawGround(palette: ParallaxPalette): DrawFn {
 
     g.beginFill(palette.path, 0.9);
     g.drawRect(0, groundY + 4, width, laneHeight);
+    g.endFill();
+  };
+}
+
+/** Darker than hillNear so foreground landmarks read as silhouettes instead of vanishing into the hill. */
+function landmarkColor(palette: ParallaxPalette): number {
+  return lerpColor(palette.hillNear, 0x000000, 0.45);
+}
+
+/** One themed silhouette per location, sitting between the near hills and the ground. */
+function makeDrawLandmark(landmark: Landmark, palette: ParallaxPalette): DrawFn {
+  switch (landmark) {
+    case 'trees':
+      return makeDrawTrees(palette);
+    case 'graves':
+      return makeDrawGraves(palette);
+    case 'fortress':
+      return makeDrawFortress(palette);
+    case 'rift':
+      return makeDrawRift(palette);
+    case 'volcano':
+      return makeDrawVolcano(palette);
+  }
+}
+
+function makeDrawTrees(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    const baseY = height * 0.78;
+    const positions = [0.08, 0.24, 0.4, 0.58, 0.74, 0.9];
+
+    const color = landmarkColor(palette);
+
+    positions.forEach((xRatio, i) => {
+      const x = width * xRatio;
+      const h = height * (0.15 + (i % 3) * 0.02);
+      const w = h * 0.55;
+
+      g.beginFill(color);
+      g.drawRect(x - w * 0.06, baseY - h * 0.25, w * 0.12, h * 0.25);
+      g.drawPolygon([x - w * 0.5, baseY - h * 0.2, x + w * 0.5, baseY - h * 0.2, x, baseY - h * 0.55]);
+      g.drawPolygon([x - w * 0.4, baseY - h * 0.45, x + w * 0.4, baseY - h * 0.45, x, baseY - h * 0.8]);
+      g.drawPolygon([x - w * 0.3, baseY - h * 0.7, x + w * 0.3, baseY - h * 0.7, x, baseY - h]);
+      g.endFill();
+    });
+  };
+}
+
+function makeDrawGraves(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    const baseY = height * 0.8;
+    const stones = [
+      { xRatio: 0.1, h: 0.09, w: 0.05, cross: false },
+      { xRatio: 0.27, h: 0.12, w: 0.045, cross: true },
+      { xRatio: 0.46, h: 0.08, w: 0.055, cross: false },
+      { xRatio: 0.65, h: 0.11, w: 0.05, cross: false },
+      { xRatio: 0.84, h: 0.07, w: 0.045, cross: true },
+    ];
+
+    const color = landmarkColor(palette);
+
+    for (const s of stones) {
+      const x = width * s.xRatio;
+      const h = height * s.h;
+      const w = width * s.w;
+
+      g.beginFill(color);
+      if (s.cross) {
+        g.drawRect(x - w * 0.12, baseY - h, w * 0.24, h);
+        g.drawRect(x - w * 0.5, baseY - h * 0.62, w, w * 0.24);
+      } else {
+        g.drawRoundedRect(x - w / 2, baseY - h, w, h, w * 0.4);
+      }
+      g.endFill();
+    }
+  };
+}
+
+function makeDrawFortress(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    const baseY = height * 0.8;
+    const x = width * 0.55;
+    const color = landmarkColor(palette);
+
+    g.beginFill(color);
+    g.drawRect(x - 70, baseY - 46, 140, 46);
+    g.drawRect(x - 90, baseY - 70, 26, 70);
+    g.drawRect(x + 64, baseY - 70, 26, 70);
+    g.drawRect(x - 14, baseY - 82, 28, 82);
+
+    for (let i = -1; i <= 1; i++) {
+      g.drawRect(x - 90 + i * 8, baseY - 76, 6, 8);
+      g.drawRect(x + 64 + i * 8, baseY - 76, 6, 8);
+    }
+    g.endFill();
+
+    g.beginFill(palette.accent, 0.85);
+    g.drawPolygon([x, baseY - 82, x + 14, baseY - 78, x, baseY - 74]);
+    g.endFill();
+
+    g.beginFill(palette.accent, 0.55);
+    g.drawRect(x - 4, baseY - 64, 8, 10);
+    g.drawRect(x - 84, baseY - 44, 6, 8);
+    g.drawRect(x + 78, baseY - 44, 6, 8);
+    g.endFill();
+  };
+}
+
+function makeDrawRift(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    const baseY = height * 0.82;
+    const x = width * 0.5;
+
+    g.beginFill(landmarkColor(palette));
+    g.drawPolygon([x - 95, baseY, x - 35, baseY, x - 60, baseY - 65]);
+    g.drawPolygon([x + 35, baseY, x + 95, baseY, x + 65, baseY - 75]);
+    g.endFill();
+
+    g.beginFill(palette.accent, 0.85);
+    g.drawPolygon([x - 12, baseY, x + 8, baseY, x + 4, baseY - 50, x - 6, baseY - 32]);
+    g.endFill();
+
+    g.beginFill(palette.accent, 0.35);
+    g.drawEllipse(x, baseY - 2, 42, 10);
+    g.endFill();
+  };
+}
+
+function makeDrawVolcano(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    const baseY = height * 0.78;
+    const x = width * 0.62;
+
+    g.beginFill(landmarkColor(palette));
+    g.drawPolygon([x - 90, baseY, x + 90, baseY, x + 20, baseY - 100, x - 20, baseY - 100]);
+    g.endFill();
+
+    g.beginFill(palette.accent, 0.9);
+    g.drawEllipse(x, baseY - 100, 22, 8);
+    g.endFill();
+
+    g.beginFill(palette.accent, 0.6);
+    g.drawPolygon([x - 8, baseY - 96, x + 8, baseY - 96, x + 16, baseY - 20, x - 16, baseY - 20]);
     g.endFill();
   };
 }

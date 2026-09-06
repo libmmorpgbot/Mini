@@ -5,7 +5,7 @@ import { Monster } from './Monster';
 import { DustEmitter } from './DustParticles';
 import { DamageNumberEmitter } from './DamageNumbers';
 import { ProjectileEmitter } from './Projectile';
-import { getLocationForLevel, type LocationDef } from '../data/locations';
+import { getLocationForLevel, LOCATIONS, type LocationDef } from '../data/locations';
 import type { CharacterClass } from '../types';
 
 export interface GameSceneCallbacks {
@@ -82,7 +82,13 @@ export class GameScene {
     this.app.stage.addChild(this.worldContainer);
 
     this.currentLocation = getLocationForLevel(this.level);
-    this.background = new ParallaxBackground(this.app.renderer, width, height, this.currentLocation.palette);
+    this.background = new ParallaxBackground(
+      this.app.renderer,
+      width,
+      height,
+      this.currentLocation.palette,
+      this.currentLocation.landmark
+    );
     this.worldContainer.addChild(this.background.container);
 
     this.dustEmitter = new DustEmitter();
@@ -112,12 +118,16 @@ export class GameScene {
 
   setLevel(level: number): void {
     this.level = level;
+  }
 
-    const location = getLocationForLevel(level);
-    if (location.id !== this.currentLocation.id) {
-      this.currentLocation = location;
-      this.swapBackground(location);
-    }
+  /** Switches to a specific location by id (from the Map tab), independent of player level. */
+  setLocation(locationId: string): void {
+    if (locationId === this.currentLocation.id) return;
+    const location = LOCATIONS.find((l) => l.id === locationId);
+    if (!location) return;
+
+    this.currentLocation = location;
+    this.swapBackground(location);
   }
 
   setPlayerHealth(current: number, max: number): void {
@@ -147,7 +157,7 @@ export class GameScene {
 
     this.worldContainer.removeChild(this.background.container);
     this.background.container.destroy({ children: true });
-    this.background = new ParallaxBackground(this.app.renderer, width, height, location.palette);
+    this.background = new ParallaxBackground(this.app.renderer, width, height, location.palette, location.landmark);
     this.worldContainer.addChildAt(this.background.container, 0);
   }
 

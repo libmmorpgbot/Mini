@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { GameScene } from './pixi/GameScene';
 import { HUD } from './components/HUD';
 import { CharacterSelect } from './components/CharacterSelect';
 import { BottomNav, type TabId } from './components/BottomNav';
 import { StubPanel, ProfilePanel } from './components/InfoPanels';
+import { MapPanel } from './components/MapPanel';
 import { useGameState } from './hooks/useGameState';
 import { useTelegram } from './hooks/useTelegram';
 import { CHARACTERS } from './data/characters';
+import { LOCATIONS, getLocationForLevel } from './data/locations';
 import type { CharacterClass } from './types';
 import './App.css';
 
@@ -21,6 +23,12 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter }: Gam
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<GameScene | null>(null);
   const { state, killMonster, takeDamage, regen } = useGameState(character);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  const activeLocation = useMemo(
+    () => LOCATIONS.find((l) => l.id === selectedLocationId) ?? getLocationForLevel(state.level),
+    [selectedLocationId, state.level]
+  );
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -52,6 +60,10 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter }: Gam
     sceneRef.current?.setPlayerHealth(state.health, state.maxHealth);
   }, [state.health, state.maxHealth]);
 
+  useEffect(() => {
+    sceneRef.current?.setLocation(activeLocation.id);
+  }, [activeLocation.id]);
+
   return (
     <div className="app-root">
       <HUD character={character} state={state} speed={state.speed} />
@@ -69,6 +81,20 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter }: Gam
               confirmLabel={(c) => `Выбрать ${c.nameAccusative}`}
               onConfirm={(next) => {
                 onChangeCharacter(next);
+                onChangeTab('game');
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'map' && (
+          <div className="tab-panel">
+            <MapPanel
+              locations={LOCATIONS}
+              playerLevel={state.level}
+              activeLocationId={activeLocation.id}
+              onSelect={(id) => {
+                setSelectedLocationId(id);
                 onChangeTab('game');
               }}
             />

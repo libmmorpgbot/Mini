@@ -1,5 +1,6 @@
 export const NAV_TABS = [
   { id: 'game', icon: '🎮', label: 'Игра' },
+  { id: 'map', icon: '🗺️', label: 'Карта' },
   { id: 'heroes', icon: '🦸', label: 'Герои' },
   { id: 'shop', icon: '🛒', label: 'Магазин' },
   { id: 'ranking', icon: '🏆', label: 'Рейтинг' },
