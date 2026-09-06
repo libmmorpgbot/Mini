@@ -46,7 +46,7 @@ export const CHARACTERS: CharacterClass[] = [
     animations: {
       idle: { src: mageIdle, frameWidth: 96, frameHeight: 64, frameCount: 5, fps: 6, bottomPadding: 13 },
       run: { src: mageRun, frameWidth: 96, frameHeight: 64, frameCount: 8, fps: 12, bottomPadding: 12 },
-      attack: { src: mageAttack, frameWidth: 96, frameHeight: 64, frameCount: 7, fps: 14, bottomPadding: 2 },
+      attack: { src: mageAttack, frameWidth: 96, frameHeight: 64, frameCount: 7, fps: 14, bottomPadding: 13 },
     },
   },
   {
@@ -60,7 +60,7 @@ export const CHARACTERS: CharacterClass[] = [
     animations: {
       idle: { src: assassinIdle, frameWidth: 96, frameHeight: 96, frameCount: 5, fps: 6, bottomPadding: 30 },
       run: { src: assassinRun, frameWidth: 96, frameHeight: 96, frameCount: 8, fps: 12, bottomPadding: 30 },
-      attack: { src: assassinAttack, frameWidth: 96, frameHeight: 96, frameCount: 6, fps: 14, bottomPadding: 27 },
+      attack: { src: assassinAttack, frameWidth: 96, frameHeight: 96, frameCount: 6, fps: 14, bottomPadding: 30 },
     },
   },
   {
@@ -88,7 +88,7 @@ export const CHARACTERS: CharacterClass[] = [
     animations: {
       idle: { src: reaperIdle, frameWidth: 128, frameHeight: 108, frameCount: 6, fps: 6, bottomPadding: 12 },
       run: { src: reaperRun, frameWidth: 128, frameHeight: 108, frameCount: 8, fps: 12, bottomPadding: 6 },
-      attack: { src: reaperAttack, frameWidth: 128, frameHeight: 108, frameCount: 6, fps: 14, bottomPadding: 7 },
+      attack: { src: reaperAttack, frameWidth: 128, frameHeight: 108, frameCount: 6, fps: 14, bottomPadding: 12 },
     },
   },
 ];
