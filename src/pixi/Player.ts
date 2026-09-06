@@ -11,13 +11,13 @@ const HEALTH_BAR_WIDTH = 46;
 const HEALTH_BAR_HEIGHT = 5;
 
 /**
- * Anchor for the health bar / projectile launch point, as a flat fraction of
- * TARGET_HEIGHT -- deliberately ignoring each animation's transparent
- * bottomPadding (which varies per sprite sheet and made this drift wildly),
- * in favour of a simple, constant "middle of the character" reference.
+ * Anchors below, as flat fractions of TARGET_HEIGHT -- deliberately ignoring
+ * each animation's transparent bottomPadding (which varies per sprite sheet
+ * and made this drift wildly), in favour of simple, constant references.
  */
-const CENTER_Y = -TARGET_HEIGHT / 2;
+const CENTER_Y = -TARGET_HEIGHT / 2; // chest height -- health bar sits just above this
 const HEALTH_BAR_Y = CENTER_Y - 20;
+const HAND_Y = -TARGET_HEIGHT * 0.35; // lower, hand/weapon height -- where hits & projectiles launch from
 
 function sliceFrames(anim: CharacterAnimation): PIXI.Texture[] {
   const baseTexture = PIXI.BaseTexture.from(anim.src, { scaleMode: PIXI.SCALE_MODES.NEAREST });
@@ -175,7 +175,7 @@ export class Player {
   }
 
   get headPosition(): { x: number; y: number } {
-    return { x: this.container.x, y: this.container.y + CENTER_Y };
+    return { x: this.container.x, y: this.container.y + HAND_Y };
   }
 
   destroy(): void {
