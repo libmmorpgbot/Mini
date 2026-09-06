@@ -4,24 +4,52 @@ import { lerpColor } from '../utils/color';
 type DrawFn = (g: PIXI.Graphics, width: number, height: number) => void;
 
 const SEGMENT_COUNT = 3;
+const SKY_HEIGHT_RATIO = 0.79;
 const GROUND_Y_RATIO = 0.84;
-const TREE_BASE_Y_RATIO = 0.8;
 
 /** Real screen px per "art pixel" -- the lower, the chunkier/more pixelated the result. */
 const PIXEL_SIZE = 3;
+
+const PALETTE = {
+  skyTop: 0x3d7ab8,
+  skyMid: 0x6fa8d8,
+  skyBottom: 0xbfe0e8,
+  hillFar: 0x6a8fae,
+  hillNear: 0x3f6b52,
+  groundTop: 0x6a9a4e,
+  groundBottom: 0x3a5c2c,
+  path: 0xc9b27a,
+  accent: 0xfff2c0,
+  cloud: 0xffffff,
+};
+
+const SUN_X_RATIO = 0.77;
+const SUN_Y_RATIO = 0.15;
+
+const CLOUD_WIDTH = 56;
+const CLOUD_HEIGHT = 30;
+const CLOUD_DRIFT_SPEED = 6; // px/sec, independent of world scroll speed
 
 /**
  * Renders `draw` at full-resolution coordinates but bakes it into a
  * low-resolution, nearest-neighbour-scaled texture, so smooth vector shapes
  * come out as genuine blocky pixel art instead of an antialiased illustration.
+ *
+ * Width/height are padded up to an exact multiple of PIXEL_SIZE first --
+ * otherwise the fractional resolution scale produces a non-integer
+ * texel-to-pixel ratio, which shows up as a stray nearest-neighbour seam
+ * column when the texture is stretched back up.
  */
 function renderPixelated(renderer: PIXI.IRenderer, width: number, height: number, draw: DrawFn): PIXI.Sprite {
+  const paddedWidth = Math.ceil(width / PIXEL_SIZE) * PIXEL_SIZE;
+  const paddedHeight = Math.ceil(height / PIXEL_SIZE) * PIXEL_SIZE;
+
   const graphics = new PIXI.Graphics();
-  draw(graphics, width, height);
+  draw(graphics, paddedWidth, paddedHeight);
 
   const renderTexture = PIXI.RenderTexture.create({
-    width,
-    height,
+    width: paddedWidth,
+    height: paddedHeight,
     resolution: 1 / PIXEL_SIZE,
     scaleMode: PIXI.SCALE_MODES.NEAREST,
   });
@@ -64,30 +92,70 @@ class ParallaxLayer {
   }
 }
 
+class CloudLayer {
+  readonly container: PIXI.Container;
+  private readonly clouds: { sprite: PIXI.Sprite; speedFactor: number }[] = [];
+  private readonly width: number;
+
+  constructor(renderer: PIXI.IRenderer, width: number, height: number) {
+    this.width = width;
+    this.container = new PIXI.Container();
+
+    const positions = [
+      { xRatio: 0.18, yRatio: 0.18, scale: 1, speedFactor: 1 },
+      { xRatio: 0.6, yRatio: 0.27, scale: 0.75, speedFactor: 0.7 },
+    ];
+
+    for (const pos of positions) {
+      const sprite = renderPixelated(renderer, CLOUD_WIDTH, CLOUD_HEIGHT, drawCloudShape);
+      sprite.anchor.set(0.5);
+      sprite.scale.set(pos.scale);
+      sprite.x = width * pos.xRatio;
+      sprite.y = height * pos.yRatio;
+      this.clouds.push({ sprite, speedFactor: pos.speedFactor });
+      this.container.addChild(sprite);
+    }
+  }
+
+  update(deltaSeconds: number): void {
+    const margin = CLOUD_WIDTH;
+    for (const { sprite, speedFactor } of this.clouds) {
+      sprite.x -= CLOUD_DRIFT_SPEED * speedFactor * deltaSeconds;
+      if (sprite.x < -margin) {
+        sprite.x = this.width + margin;
+      }
+    }
+  }
+}
+
 export class ParallaxBackground {
   readonly container: PIXI.Container;
   private readonly layers: ParallaxLayer[];
+  private readonly clouds: CloudLayer;
 
   constructor(renderer: PIXI.IRenderer, width: number, height: number) {
     this.container = new PIXI.Container();
 
     this.layers = [
       new ParallaxLayer(renderer, width, height, 0.1, drawSky),
-      new ParallaxLayer(renderer, width, height, 0.25, drawFarMountains),
-      new ParallaxLayer(renderer, width, height, 0.4, drawNearMountains),
-      new ParallaxLayer(renderer, width, height, 0.55, drawTrees),
+      new ParallaxLayer(renderer, width, height, 0.3, drawFarHills),
+      new ParallaxLayer(renderer, width, height, 0.55, drawNearHills),
       new ParallaxLayer(renderer, width, height, 1, drawGround),
     ];
+    this.clouds = new CloudLayer(renderer, width, height);
 
-    for (const layer of this.layers) {
-      this.container.addChild(layer.container);
-    }
+    this.container.addChild(this.layers[0].container);
+    this.container.addChild(this.clouds.container);
+    this.container.addChild(this.layers[1].container);
+    this.container.addChild(this.layers[2].container);
+    this.container.addChild(this.layers[3].container);
   }
 
   update(deltaSeconds: number, baseSpeed: number): void {
     for (const layer of this.layers) {
       layer.update(deltaSeconds, baseSpeed);
     }
+    this.clouds.update(deltaSeconds);
   }
 }
 
@@ -116,169 +184,88 @@ function drawGradientRect(
   }
 }
 
-function drawCloud(g: PIXI.Graphics, x: number, y: number, s = 1): void {
-  g.drawCircle(x, y, 22 * s);
-  g.drawCircle(x + 22 * s, y + 8 * s, 18 * s);
-  g.drawCircle(x - 22 * s, y + 8 * s, 18 * s);
-  g.drawCircle(x + 8 * s, y - 10 * s, 16 * s);
+function drawCloudShape(g: PIXI.Graphics, width: number, height: number): void {
+  const cx = width / 2;
+  const cy = height * 0.6;
+
+  g.beginFill(PALETTE.cloud, 0.95);
+  g.drawEllipse(cx, cy, width * 0.5, height * 0.32);
+  g.drawEllipse(cx - width * 0.26, cy + height * 0.08, width * 0.28, height * 0.22);
+  g.drawEllipse(cx + width * 0.26, cy + height * 0.06, width * 0.3, height * 0.24);
+  g.drawEllipse(cx - width * 0.05, cy - height * 0.18, width * 0.26, height * 0.2);
+  g.endFill();
 }
 
 function drawSky(g: PIXI.Graphics, width: number, height: number): void {
-  const bandBottom = height * TREE_BASE_Y_RATIO;
+  const skyHeight = height * SKY_HEIGHT_RATIO;
 
-  drawGradientRect(g, 0, 0, width, bandBottom, [0x3a6ea8, 0x6fa3c9, 0xa9cfe0, 0xe8dcae], 16);
+  drawGradientRect(g, 0, 0, width, skyHeight, [PALETTE.skyTop, PALETTE.skyMid, PALETTE.skyBottom], 14);
 
-  g.beginFill(0xffffff, 0.85);
-  drawCloud(g, width * 0.15, height * 0.15, 1.1);
-  drawCloud(g, width * 0.55, height * 0.24, 0.9);
-  drawCloud(g, width * 0.85, height * 0.12, 1.2);
+  const sunX = width * SUN_X_RATIO;
+  const sunY = height * SUN_Y_RATIO;
+
+  g.beginFill(PALETTE.accent, 0.35);
+  g.drawCircle(sunX, sunY, 46);
   g.endFill();
 
-  g.beginFill(0xfff3c4, 0.9);
-  g.drawCircle(width * 0.78, height * 0.14, 26);
+  g.beginFill(PALETTE.accent, 0.95);
+  g.drawCircle(sunX, sunY, 24);
   g.endFill();
 }
 
-function drawSnowPeak(g: PIXI.Graphics, x: number, tipY: number, halfWidth: number, snowHeight: number): void {
-  g.drawPolygon([x - halfWidth, tipY + snowHeight, x, tipY, x + halfWidth, tipY + snowHeight]);
-}
-
-function drawMountain(
+/**
+ * Sine-sampled silhouette built row-by-row (rather than a hand-authored
+ * polygon) so it can never self-intersect regardless of amplitude/phase.
+ */
+function drawHillSilhouette(
   g: PIXI.Graphics,
-  x: number,
-  baseY: number,
   width: number,
-  peakHeight: number,
-  color: number,
-  snowColor: number | null
+  height: number,
+  baseRatio: number,
+  ampRatio: number,
+  phase: number,
+  color: number
 ): void {
-  const tipY = baseY - peakHeight;
+  const baseY = height * baseRatio;
+  const amplitude = height * ampRatio;
+  const segments = 24;
+  const points: number[] = [];
+
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const x = t * width;
+    const y = baseY - amplitude * (0.5 + 0.5 * Math.sin(t * Math.PI * 2.2 + phase));
+    points.push(x, y);
+  }
+
+  points.push(width, height);
+  points.push(0, height);
 
   g.beginFill(color);
-  g.moveTo(x - width / 2, baseY);
-  g.lineTo(x - width / 6, baseY - peakHeight * 0.55);
-  g.lineTo(x, tipY);
-  g.lineTo(x + width / 6, baseY - peakHeight * 0.55);
-  g.lineTo(x + width / 2, baseY);
-  g.closePath();
-  g.endFill();
-
-  if (snowColor !== null) {
-    g.beginFill(snowColor, 0.95);
-    drawSnowPeak(g, x, tipY, width * 0.12, peakHeight * 0.28);
-    g.endFill();
-  }
-}
-
-function drawCastleSilhouette(g: PIXI.Graphics, x: number, baseY: number): void {
-  const color = 0x4a5a78;
-  g.beginFill(color, 0.7);
-
-  g.drawEllipse(x, baseY, 90, 20);
-  g.drawRect(x - 46, baseY - 34, 92, 34);
-  g.drawRect(x - 58, baseY - 52, 20, 52);
-  g.drawRect(x + 38, baseY - 52, 20, 52);
-  g.drawRect(x - 12, baseY - 64, 24, 64);
-
-  for (let i = -1; i <= 1; i++) {
-    g.drawRect(x - 58 + i * 8, baseY - 58, 6, 8);
-    g.drawRect(x + 38 + i * 8, baseY - 58, 6, 8);
-  }
-
-  g.drawPolygon([x - 12, baseY - 64, x, baseY - 82, x + 12, baseY - 64]);
-  g.endFill();
-
-  g.beginFill(0xffe9a8, 0.6);
-  g.drawRect(x - 3, baseY - 46, 6, 8);
-  g.drawRect(x - 51, baseY - 30, 5, 7);
-  g.drawRect(x + 45, baseY - 30, 5, 7);
+  g.drawPolygon(points);
   g.endFill();
 }
 
-function drawFarMountains(g: PIXI.Graphics, width: number, height: number): void {
-  const baseY = height * 0.58;
-
-  drawMountain(g, width * 0.08, baseY, 220, 130, 0x7d92b5, 0xf0f4fa);
-  drawMountain(g, width * 0.5, baseY, 260, 160, 0x7d92b5, 0xf0f4fa);
-  drawMountain(g, width * 0.88, baseY, 210, 120, 0x7d92b5, 0xf0f4fa);
-
-  drawCastleSilhouette(g, width * 0.68, baseY - 6);
+function drawFarHills(g: PIXI.Graphics, width: number, height: number): void {
+  drawHillSilhouette(g, width, height, 0.6, 0.07, 0.4, PALETTE.hillFar);
 }
 
-function drawNearMountains(g: PIXI.Graphics, width: number, height: number): void {
-  const baseY = height * TREE_BASE_Y_RATIO + 6;
-
-  drawMountain(g, width * 0.22, baseY, 190, 95, 0x5a7099, null);
-  drawMountain(g, width * 0.62, baseY, 230, 110, 0x5a7099, null);
-  drawMountain(g, width * 0.95, baseY, 170, 85, 0x5a7099, null);
-}
-
-function drawPineCluster(g: PIXI.Graphics, x: number, baseY: number, darkColor: number, lightColor: number): void {
-  g.beginFill(darkColor);
-  g.drawPolygon([x - 26, baseY, x + 26, baseY, x, baseY - 22]);
-  g.drawPolygon([x - 20, baseY - 14, x + 20, baseY - 14, x, baseY - 36]);
-  g.drawPolygon([x - 14, baseY - 28, x + 14, baseY - 28, x, baseY - 48]);
-  g.endFill();
-
-  g.beginFill(lightColor, 0.55);
-  g.drawPolygon([x, baseY, x + 13, baseY - 11, x, baseY - 22]);
-  g.drawPolygon([x, baseY - 14, x + 10, baseY - 25, x, baseY - 36]);
-  g.drawPolygon([x, baseY - 28, x + 7, baseY - 38, x, baseY - 48]);
-  g.endFill();
-}
-
-function drawTrees(g: PIXI.Graphics, width: number, height: number): void {
-  const baseY = height * TREE_BASE_Y_RATIO;
-  const count = 8;
-
-  for (let i = 0; i < count; i++) {
-    const x = (width / count) * i + 26;
-    const wobble = Math.sin(i * 2.4) * 5;
-    const trunkHeight = 24 + ((i * 7) % 3) * 6 + wobble * 0.4;
-
-    g.beginFill(0x5a3c28);
-    g.drawRect(x - 5, baseY - trunkHeight, 10, trunkHeight);
-    g.endFill();
-
-    const dark = i % 3 === 0 ? 0x2d6b46 : 0x357a4f;
-    drawPineCluster(g, x + wobble * 0.3, baseY - trunkHeight, dark, 0x63a56e);
-  }
+function drawNearHills(g: PIXI.Graphics, width: number, height: number): void {
+  drawHillSilhouette(g, width, height, 0.74, 0.05, 2.1, PALETTE.hillNear);
 }
 
 function drawGround(g: PIXI.Graphics, width: number, height: number): void {
   const groundY = height * GROUND_Y_RATIO;
 
-  drawGradientRect(g, 0, groundY, width, height - groundY, [0x6fae55, 0x4a8a3f], 10);
+  drawGradientRect(g, 0, groundY, width, height - groundY, [PALETTE.groundTop, PALETTE.groundBottom], 10);
 
-  g.beginFill(0x24401f, 0.35);
-  g.drawRect(0, groundY, width, 8);
+  const laneHeight = height * 0.025;
+
+  g.beginFill(PALETTE.groundBottom, 0.4);
+  g.drawRect(0, groundY, width, 4);
   g.endFill();
 
-  g.beginFill(0x8a6a42, 0.85);
-  g.drawEllipse(width * 0.2, groundY + 20, 60, 12);
-  g.drawEllipse(width * 0.42, groundY + 26, 70, 13);
-  g.drawEllipse(width * 0.68, groundY + 20, 65, 12);
-  g.drawEllipse(width * 0.9, groundY + 16, 50, 10);
-  g.endFill();
-
-  g.beginFill(0x74593a, 0.5);
-  for (let i = 0; i < 5; i++) {
-    const x = (width / 5) * i + 20;
-    g.drawEllipse(x, groundY + 15, 20, 5);
-  }
-  g.endFill();
-
-  g.beginFill(0x8a988f, 0.75);
-  for (let i = 0; i < 6; i++) {
-    const x = (width / 6) * i + 45;
-    g.drawEllipse(x, groundY + 30, 6, 4);
-  }
-  g.endFill();
-
-  g.beginFill(0x3d6b34);
-  for (let i = 0; i < 26; i++) {
-    const x = (width / 26) * i + (i % 2 === 0 ? 6 : 0);
-    g.drawRect(x, groundY, 3, 12 + (i % 3) * 3);
-  }
+  g.beginFill(PALETTE.path, 0.9);
+  g.drawRect(0, groundY + 4, width, laneHeight);
   g.endFill();
 }

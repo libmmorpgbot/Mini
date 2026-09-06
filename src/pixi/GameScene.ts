@@ -31,7 +31,7 @@ const MONSTER_ATTACK_INTERVAL_SECONDS = 0.85;
 const REGEN_PER_SECOND = 6;
 const REGEN_TICK_INTERVAL = 0.5;
 
-const BACKGROUND_COLOR = 0xe8dcae;
+const BACKGROUND_COLOR = 0xbfe0e8;
 
 export class GameScene {
   private readonly app: PIXI.Application;
