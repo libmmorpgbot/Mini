@@ -9,7 +9,7 @@ const DAMAGE_FLASH_DURATION = 0.15;
 
 const HEALTH_BAR_WIDTH = 46;
 const HEALTH_BAR_HEIGHT = 5;
-const HEALTH_BAR_Y = -(TARGET_HEIGHT + 18);
+const HEALTH_BAR_GAP = 10; // px above the sprite's actual (bottomPadding-adjusted) top edge
 
 function sliceFrames(anim: CharacterAnimation): PIXI.Texture[] {
   const baseTexture = PIXI.BaseTexture.from(anim.src, { scaleMode: PIXI.SCALE_MODES.NEAREST });
@@ -30,11 +30,12 @@ export class Player {
   private readonly textures: Record<AnimState, PIXI.Texture[]>;
   private readonly scale: number;
   private readonly healthBarFill: PIXI.Graphics;
+  private readonly healthBarWrap: PIXI.Container;
 
   private state: AnimState = 'run';
   private inCombat = false;
-  private attackTickTimer = 0;
   private attackTicked = false;
+  private prevAttackFrame = -1;
   private stepTimer = 0;
   private stepped = false;
   private flashTimer = 0;
@@ -62,12 +63,18 @@ export class Player {
     this.sprite.play();
 
     this.healthBarFill = new PIXI.Graphics();
-    this.container.addChild(this.sprite, this.createHealthBar());
+    this.healthBarWrap = this.createHealthBar();
+    this.healthBarWrap.y = this.spriteTopY() - HEALTH_BAR_GAP;
+    this.container.addChild(this.sprite, this.healthBarWrap);
+  }
+
+  /** The sprite's current rendered top edge, in container-local space (accounts for bottomPadding). */
+  private spriteTopY(): number {
+    return this.sprite.y - TARGET_HEIGHT;
   }
 
   private createHealthBar(): PIXI.Container {
     const wrap = new PIXI.Container();
-    wrap.y = HEALTH_BAR_Y;
 
     const track = new PIXI.Graphics();
     track.beginFill(0x1c1c1c, 0.6);
@@ -101,13 +108,14 @@ export class Player {
         this.stepped = true;
       }
     } else {
-      const anim = this.character.animations.attack;
-      const loopDuration = anim.frameCount / anim.fps;
-      this.attackTickTimer += deltaSeconds;
-      if (this.attackTickTimer >= loopDuration) {
-        this.attackTickTimer -= loopDuration;
+      // Fire on the penultimate frame of the swing/shot -- where the sprite sheets actually
+      // land their hit/release -- rather than at a fixed time offset unrelated to the art.
+      const targetFrame = Math.max(0, this.character.animations.attack.frameCount - 2);
+      const frame = this.sprite.currentFrame;
+      if (frame === targetFrame && this.prevAttackFrame !== targetFrame) {
         this.attackTicked = true;
       }
+      this.prevAttackFrame = frame;
     }
 
     if (this.flashTimer > 0) {
@@ -133,9 +141,10 @@ export class Player {
     this.sprite.y = def.bottomPadding * this.scale;
     this.sprite.loop = true;
     this.sprite.gotoAndPlay(0);
+    this.healthBarWrap.y = this.spriteTopY() - HEALTH_BAR_GAP;
 
     if (next === 'attack') {
-      this.attackTickTimer = 0;
+      this.prevAttackFrame = -1;
     } else {
       this.stepTimer = 0;
     }
@@ -164,7 +173,7 @@ export class Player {
   }
 
   get headPosition(): { x: number; y: number } {
-    return { x: this.container.x, y: this.container.y - TARGET_HEIGHT };
+    return { x: this.container.x, y: this.container.y + this.spriteTopY() };
   }
 
   destroy(): void {
