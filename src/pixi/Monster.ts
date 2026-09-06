@@ -9,6 +9,7 @@ const HIT_RECOIL_DURATION = 0.15;
 const HEALTH_BAR_WIDTH = 40;
 const HEALTH_BAR_HEIGHT = 5;
 const HEALTH_BAR_Y = -72;
+const LEVEL_BADGE_RADIUS = 8;
 
 // The body is drawn with its feet at local y = 0, growing upward (negative y),
 // so the container's own y can sit directly on the ground line.
@@ -22,6 +23,7 @@ export class Monster {
   readonly maxHealth: number;
   readonly damage: number;
   readonly attackIntervalSeconds: number;
+  readonly level: number;
 
   health: number;
 
@@ -34,13 +36,21 @@ export class Monster {
   private attackLungeTimer = 0;
   private hitRecoilTimer = 0;
 
-  constructor(x: number, y: number, maxHealth: number, damage: number, attackIntervalSeconds: number) {
+  constructor(
+    x: number,
+    y: number,
+    maxHealth: number,
+    damage: number,
+    attackIntervalSeconds: number,
+    level: number
+  ) {
     this.id = nextId++;
     this.time = Math.random() * Math.PI * 2;
     this.maxHealth = maxHealth;
     this.health = maxHealth;
     this.damage = damage;
     this.attackIntervalSeconds = attackIntervalSeconds;
+    this.level = level;
 
     this.container = new PIXI.Container();
     this.container.x = x;
@@ -133,6 +143,27 @@ export class Monster {
     this.healthBarFill.endFill();
     this.healthBarFill.x = -HEALTH_BAR_WIDTH / 2;
     wrap.addChild(this.healthBarFill);
+
+    const badgeX = -HEALTH_BAR_WIDTH / 2 - LEVEL_BADGE_RADIUS - 3;
+    const badgeY = HEALTH_BAR_HEIGHT / 2;
+
+    const badge = new PIXI.Graphics();
+    badge.lineStyle(1, 0x1c1c1c, 0.6);
+    badge.beginFill(0xffb703);
+    badge.drawCircle(badgeX, badgeY, LEVEL_BADGE_RADIUS);
+    badge.endFill();
+    wrap.addChild(badge);
+
+    const label = new PIXI.Text(`${this.level}`, {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: 9,
+      fontWeight: '800',
+      fill: 0x1c1c1c,
+    });
+    label.anchor.set(0.5);
+    label.x = badgeX;
+    label.y = badgeY;
+    wrap.addChild(label);
 
     return wrap;
   }

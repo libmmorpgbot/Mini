@@ -29,6 +29,7 @@ export const CHARACTERS: CharacterClass[] = [
     baseHealth: 140,
     baseDamage: 16,
     accentColor: 0xd1495b,
+    attackRange: 62,
     animations: {
       idle: { src: warriorIdle, frameWidth: 96, frameHeight: 64, frameCount: 5, fps: 6, bottomPadding: 16 },
       run: { src: warriorRun, frameWidth: 96, frameHeight: 64, frameCount: 7, fps: 12, bottomPadding: 16 },
@@ -43,6 +44,8 @@ export const CHARACTERS: CharacterClass[] = [
     baseHealth: 90,
     baseDamage: 22,
     accentColor: 0x2a9d8f,
+    attackRange: 240,
+    rangedAttack: 'ice',
     animations: {
       idle: { src: mageIdle, frameWidth: 96, frameHeight: 64, frameCount: 5, fps: 6, bottomPadding: 13 },
       run: { src: mageRun, frameWidth: 96, frameHeight: 64, frameCount: 8, fps: 12, bottomPadding: 12 },
@@ -57,6 +60,7 @@ export const CHARACTERS: CharacterClass[] = [
     baseHealth: 100,
     baseDamage: 20,
     accentColor: 0x6c3fa8,
+    attackRange: 62,
     animations: {
       idle: { src: assassinIdle, frameWidth: 96, frameHeight: 96, frameCount: 5, fps: 6, bottomPadding: 30 },
       run: { src: assassinRun, frameWidth: 96, frameHeight: 96, frameCount: 8, fps: 12, bottomPadding: 30 },
@@ -71,6 +75,8 @@ export const CHARACTERS: CharacterClass[] = [
     baseHealth: 110,
     baseDamage: 15,
     accentColor: 0xb3542c,
+    attackRange: 260,
+    rangedAttack: 'arrow',
     animations: {
       idle: { src: archerIdle, frameWidth: 96, frameHeight: 80, frameCount: 14, fps: 8, bottomPadding: 16 },
       run: { src: archerRun, frameWidth: 96, frameHeight: 80, frameCount: 8, fps: 12, bottomPadding: 16 },
@@ -85,6 +91,7 @@ export const CHARACTERS: CharacterClass[] = [
     baseHealth: 130,
     baseDamage: 19,
     accentColor: 0xa11d33,
+    attackRange: 62,
     animations: {
       idle: { src: reaperIdle, frameWidth: 128, frameHeight: 108, frameCount: 6, fps: 6, bottomPadding: 12 },
       run: { src: reaperRun, frameWidth: 128, frameHeight: 108, frameCount: 8, fps: 12, bottomPadding: 6 },

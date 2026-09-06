@@ -25,6 +25,10 @@ export interface CharacterClass {
   baseDamage: number;
   /** Accent color used for this character's UI highlights (hex, e.g. 0xff0000). */
   accentColor: number;
+  /** Distance (px) at which this character engages a monster instead of closing in further. */
+  attackRange: number;
+  /** Set for ranged classes: fires a visual projectile toward the target on each attack tick. */
+  rangedAttack?: 'arrow' | 'ice';
   animations: {
     idle: CharacterAnimation;
     run: CharacterAnimation;

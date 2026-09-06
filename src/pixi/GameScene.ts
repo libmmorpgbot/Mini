@@ -4,6 +4,8 @@ import { Player } from './Player';
 import { Monster } from './Monster';
 import { DustEmitter } from './DustParticles';
 import { DamageNumberEmitter } from './DamageNumbers';
+import { ProjectileEmitter } from './Projectile';
+import { getLocationForLevel, type LocationDef } from '../data/locations';
 import type { CharacterClass } from '../types';
 
 export interface GameSceneCallbacks {
@@ -22,7 +24,6 @@ const MONSTER_DESPAWN_X = -60;
 const DUST_PER_STEP_MIN = 2;
 const DUST_PER_STEP_MAX = 3;
 
-const ATTACK_RANGE = 62;
 const MONSTER_BASE_HEALTH = 44;
 const MONSTER_HEALTH_PER_LEVEL = 5;
 const MONSTER_BASE_DAMAGE = 5;
@@ -36,17 +37,22 @@ const BACKGROUND_COLOR = 0xbfe0e8;
 export class GameScene {
   private readonly app: PIXI.Application;
   private readonly host: HTMLDivElement;
-  private readonly background: ParallaxBackground;
+  private readonly worldContainer: PIXI.Container;
+  private background: ParallaxBackground;
   private readonly player: Player;
   private readonly playerDamage: number;
+  private readonly attackRange: number;
+  private readonly rangedAttack: CharacterClass['rangedAttack'];
   private readonly monsters: Monster[] = [];
   private readonly monstersContainer: PIXI.Container;
   private readonly dustEmitter: DustEmitter;
   private readonly damageNumbers: DamageNumberEmitter;
+  private readonly projectiles: ProjectileEmitter;
   private readonly callbacks: GameSceneCallbacks;
 
   private speedMultiplier = 1;
   private level = 1;
+  private currentLocation: LocationDef;
   private spawnTimer = 0;
   private nextSpawnDelay = 0;
   private regenTimer = 0;
@@ -56,6 +62,8 @@ export class GameScene {
     this.host = host;
     this.callbacks = callbacks;
     this.playerDamage = character.baseDamage;
+    this.attackRange = character.attackRange;
+    this.rangedAttack = character.rangedAttack;
 
     const width = host.clientWidth || window.innerWidth;
     const height = host.clientHeight || window.innerHeight;
@@ -70,23 +78,27 @@ export class GameScene {
     });
     host.appendChild(this.app.view as unknown as HTMLCanvasElement);
 
-    const worldContainer = new PIXI.Container();
-    this.app.stage.addChild(worldContainer);
+    this.worldContainer = new PIXI.Container();
+    this.app.stage.addChild(this.worldContainer);
 
-    this.background = new ParallaxBackground(this.app.renderer, width, height);
-    worldContainer.addChild(this.background.container);
+    this.currentLocation = getLocationForLevel(this.level);
+    this.background = new ParallaxBackground(this.app.renderer, width, height, this.currentLocation.palette);
+    this.worldContainer.addChild(this.background.container);
 
     this.dustEmitter = new DustEmitter();
-    worldContainer.addChild(this.dustEmitter.container);
+    this.worldContainer.addChild(this.dustEmitter.container);
 
     this.player = new Player(width * PLAYER_X_RATIO, height * GROUND_Y_RATIO, character);
-    worldContainer.addChild(this.player.container);
+    this.worldContainer.addChild(this.player.container);
 
     this.monstersContainer = new PIXI.Container();
-    worldContainer.addChild(this.monstersContainer);
+    this.worldContainer.addChild(this.monstersContainer);
 
     this.damageNumbers = new DamageNumberEmitter();
-    worldContainer.addChild(this.damageNumbers.container);
+    this.worldContainer.addChild(this.damageNumbers.container);
+
+    this.projectiles = new ProjectileEmitter();
+    this.worldContainer.addChild(this.projectiles.container);
 
     this.scheduleNextSpawn();
 
@@ -100,6 +112,16 @@ export class GameScene {
 
   setLevel(level: number): void {
     this.level = level;
+
+    const location = getLocationForLevel(level);
+    if (location.id !== this.currentLocation.id) {
+      this.currentLocation = location;
+      this.swapBackground(location);
+    }
+  }
+
+  setPlayerHealth(current: number, max: number): void {
+    this.player.setHealth(current, max);
   }
 
   destroy(): void {
@@ -112,10 +134,21 @@ export class GameScene {
     }
     this.monsters.length = 0;
 
+    this.projectiles.destroy();
     this.damageNumbers.destroy();
     this.dustEmitter.destroy();
     this.player.destroy();
     this.app.destroy(true, { children: true, texture: true, baseTexture: true });
+  }
+
+  private swapBackground(location: LocationDef): void {
+    const width = this.app.screen.width;
+    const height = this.app.screen.height;
+
+    this.worldContainer.removeChild(this.background.container);
+    this.background.container.destroy({ children: true });
+    this.background = new ParallaxBackground(this.app.renderer, width, height, location.palette);
+    this.worldContainer.addChildAt(this.background.container, 0);
   }
 
   private scheduleNextSpawn(): void {
@@ -127,9 +160,22 @@ export class GameScene {
   private spawnMonster(): void {
     const width = this.app.screen.width;
     const height = this.app.screen.height;
-    const maxHealth = MONSTER_BASE_HEALTH + (this.level - 1) * MONSTER_HEALTH_PER_LEVEL;
-    const damage = MONSTER_BASE_DAMAGE + Math.floor((this.level - 1) * MONSTER_DAMAGE_PER_LEVEL);
-    const monster = new Monster(width + 40, height * GROUND_Y_RATIO, maxHealth, damage, MONSTER_ATTACK_INTERVAL_SECONDS);
+
+    const [minLevel, maxLevel] = this.currentLocation.monsterLevelRange;
+    const rolled = this.level + Math.floor(Math.random() * 4) - 1; // playerLevel-1 .. playerLevel+2
+    const monsterLevel = Math.max(minLevel, Math.min(maxLevel, rolled));
+
+    const multiplier = this.currentLocation.statMultiplier;
+    const maxHealth = Math.round((MONSTER_BASE_HEALTH + (monsterLevel - 1) * MONSTER_HEALTH_PER_LEVEL) * multiplier);
+    const damage = Math.round((MONSTER_BASE_DAMAGE + (monsterLevel - 1) * MONSTER_DAMAGE_PER_LEVEL) * multiplier);
+    const monster = new Monster(
+      width + 40,
+      height * GROUND_Y_RATIO,
+      maxHealth,
+      damage,
+      MONSTER_ATTACK_INTERVAL_SECONDS,
+      monsterLevel
+    );
     this.monsters.push(monster);
     this.monstersContainer.addChild(monster.container);
   }
@@ -147,7 +193,7 @@ export class GameScene {
     let engagedDistance = Infinity;
     for (const monster of this.monsters) {
       const distance = monster.x - playerX;
-      const inRange = distance <= ATTACK_RANGE;
+      const inRange = distance <= this.attackRange;
       monster.setInRange(inRange);
       if (inRange && distance < engagedDistance) {
         engagedDistance = distance;
@@ -163,6 +209,7 @@ export class GameScene {
     this.player.update(deltaSeconds, this.speedMultiplier);
     this.dustEmitter.update(deltaSeconds, speed);
     this.damageNumbers.update(deltaSeconds);
+    this.projectiles.update(deltaSeconds);
 
     if (!combatActive) {
       if (this.player.consumeFootstep()) {
@@ -192,6 +239,12 @@ export class GameScene {
 
       if (monster === engaged && this.player.consumeAttackTick()) {
         const top = monster.topPosition;
+
+        if (this.rangedAttack) {
+          const origin = this.player.headPosition;
+          this.projectiles.spawn(this.rangedAttack, origin.x, origin.y, top.x, top.y);
+        }
+
         this.damageNumbers.spawn(top.x, top.y, this.playerDamage, 0xffe066);
 
         if (monster.takeDamage(this.playerDamage)) {

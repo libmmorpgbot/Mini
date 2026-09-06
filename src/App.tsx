@@ -48,6 +48,10 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter }: Gam
     sceneRef.current?.setLevel(state.level);
   }, [state.level]);
 
+  useEffect(() => {
+    sceneRef.current?.setPlayerHealth(state.health, state.maxHealth);
+  }, [state.health, state.maxHealth]);
+
   return (
     <div className="app-root">
       <HUD character={character} state={state} speed={state.speed} />

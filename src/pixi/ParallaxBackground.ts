@@ -10,7 +10,20 @@ const GROUND_Y_RATIO = 0.84;
 /** Real screen px per "art pixel" -- the lower, the chunkier/more pixelated the result. */
 const PIXEL_SIZE = 3;
 
-const PALETTE = {
+export interface ParallaxPalette {
+  skyTop: number;
+  skyMid: number;
+  skyBottom: number;
+  hillFar: number;
+  hillNear: number;
+  groundTop: number;
+  groundBottom: number;
+  path: number;
+  accent: number;
+  cloud: number;
+}
+
+export const DEFAULT_PALETTE: ParallaxPalette = {
   skyTop: 0x3d7ab8,
   skyMid: 0x6fa8d8,
   skyBottom: 0xbfe0e8,
@@ -97,7 +110,7 @@ class CloudLayer {
   private readonly clouds: { sprite: PIXI.Sprite; speedFactor: number }[] = [];
   private readonly width: number;
 
-  constructor(renderer: PIXI.IRenderer, width: number, height: number) {
+  constructor(renderer: PIXI.IRenderer, width: number, height: number, palette: ParallaxPalette) {
     this.width = width;
     this.container = new PIXI.Container();
 
@@ -107,7 +120,7 @@ class CloudLayer {
     ];
 
     for (const pos of positions) {
-      const sprite = renderPixelated(renderer, CLOUD_WIDTH, CLOUD_HEIGHT, drawCloudShape);
+      const sprite = renderPixelated(renderer, CLOUD_WIDTH, CLOUD_HEIGHT, makeDrawCloudShape(palette));
       sprite.anchor.set(0.5);
       sprite.scale.set(pos.scale);
       sprite.x = width * pos.xRatio;
@@ -133,16 +146,16 @@ export class ParallaxBackground {
   private readonly layers: ParallaxLayer[];
   private readonly clouds: CloudLayer;
 
-  constructor(renderer: PIXI.IRenderer, width: number, height: number) {
+  constructor(renderer: PIXI.IRenderer, width: number, height: number, palette: ParallaxPalette = DEFAULT_PALETTE) {
     this.container = new PIXI.Container();
 
     this.layers = [
-      new ParallaxLayer(renderer, width, height, 0.1, drawSky),
-      new ParallaxLayer(renderer, width, height, 0.3, drawFarHills),
-      new ParallaxLayer(renderer, width, height, 0.55, drawNearHills),
-      new ParallaxLayer(renderer, width, height, 1, drawGround),
+      new ParallaxLayer(renderer, width, height, 0.1, makeDrawSky(palette)),
+      new ParallaxLayer(renderer, width, height, 0.3, makeDrawFarHills(palette)),
+      new ParallaxLayer(renderer, width, height, 0.55, makeDrawNearHills(palette)),
+      new ParallaxLayer(renderer, width, height, 1, makeDrawGround(palette)),
     ];
-    this.clouds = new CloudLayer(renderer, width, height);
+    this.clouds = new CloudLayer(renderer, width, height, palette);
 
     this.container.addChild(this.layers[0].container);
     this.container.addChild(this.clouds.container);
@@ -184,33 +197,37 @@ function drawGradientRect(
   }
 }
 
-function drawCloudShape(g: PIXI.Graphics, width: number, height: number): void {
-  const cx = width / 2;
-  const cy = height * 0.6;
+function makeDrawCloudShape(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    const cx = width / 2;
+    const cy = height * 0.6;
 
-  g.beginFill(PALETTE.cloud, 0.95);
-  g.drawEllipse(cx, cy, width * 0.5, height * 0.32);
-  g.drawEllipse(cx - width * 0.26, cy + height * 0.08, width * 0.28, height * 0.22);
-  g.drawEllipse(cx + width * 0.26, cy + height * 0.06, width * 0.3, height * 0.24);
-  g.drawEllipse(cx - width * 0.05, cy - height * 0.18, width * 0.26, height * 0.2);
-  g.endFill();
+    g.beginFill(palette.cloud, 0.95);
+    g.drawEllipse(cx, cy, width * 0.5, height * 0.32);
+    g.drawEllipse(cx - width * 0.26, cy + height * 0.08, width * 0.28, height * 0.22);
+    g.drawEllipse(cx + width * 0.26, cy + height * 0.06, width * 0.3, height * 0.24);
+    g.drawEllipse(cx - width * 0.05, cy - height * 0.18, width * 0.26, height * 0.2);
+    g.endFill();
+  };
 }
 
-function drawSky(g: PIXI.Graphics, width: number, height: number): void {
-  const skyHeight = height * SKY_HEIGHT_RATIO;
+function makeDrawSky(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    const skyHeight = height * SKY_HEIGHT_RATIO;
 
-  drawGradientRect(g, 0, 0, width, skyHeight, [PALETTE.skyTop, PALETTE.skyMid, PALETTE.skyBottom], 14);
+    drawGradientRect(g, 0, 0, width, skyHeight, [palette.skyTop, palette.skyMid, palette.skyBottom], 14);
 
-  const sunX = width * SUN_X_RATIO;
-  const sunY = height * SUN_Y_RATIO;
+    const sunX = width * SUN_X_RATIO;
+    const sunY = height * SUN_Y_RATIO;
 
-  g.beginFill(PALETTE.accent, 0.35);
-  g.drawCircle(sunX, sunY, 46);
-  g.endFill();
+    g.beginFill(palette.accent, 0.35);
+    g.drawCircle(sunX, sunY, 46);
+    g.endFill();
 
-  g.beginFill(PALETTE.accent, 0.95);
-  g.drawCircle(sunX, sunY, 24);
-  g.endFill();
+    g.beginFill(palette.accent, 0.95);
+    g.drawCircle(sunX, sunY, 24);
+    g.endFill();
+  };
 }
 
 /**
@@ -246,26 +263,32 @@ function drawHillSilhouette(
   g.endFill();
 }
 
-function drawFarHills(g: PIXI.Graphics, width: number, height: number): void {
-  drawHillSilhouette(g, width, height, 0.6, 0.07, 0.4, PALETTE.hillFar);
+function makeDrawFarHills(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    drawHillSilhouette(g, width, height, 0.6, 0.07, 0.4, palette.hillFar);
+  };
 }
 
-function drawNearHills(g: PIXI.Graphics, width: number, height: number): void {
-  drawHillSilhouette(g, width, height, 0.74, 0.05, 2.1, PALETTE.hillNear);
+function makeDrawNearHills(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    drawHillSilhouette(g, width, height, 0.74, 0.05, 2.1, palette.hillNear);
+  };
 }
 
-function drawGround(g: PIXI.Graphics, width: number, height: number): void {
-  const groundY = height * GROUND_Y_RATIO;
+function makeDrawGround(palette: ParallaxPalette): DrawFn {
+  return (g, width, height) => {
+    const groundY = height * GROUND_Y_RATIO;
 
-  drawGradientRect(g, 0, groundY, width, height - groundY, [PALETTE.groundTop, PALETTE.groundBottom], 10);
+    drawGradientRect(g, 0, groundY, width, height - groundY, [palette.groundTop, palette.groundBottom], 10);
 
-  const laneHeight = height * 0.025;
+    const laneHeight = height * 0.025;
 
-  g.beginFill(PALETTE.groundBottom, 0.4);
-  g.drawRect(0, groundY, width, 4);
-  g.endFill();
+    g.beginFill(palette.groundBottom, 0.4);
+    g.drawRect(0, groundY, width, 4);
+    g.endFill();
 
-  g.beginFill(PALETTE.path, 0.9);
-  g.drawRect(0, groundY + 4, width, laneHeight);
-  g.endFill();
+    g.beginFill(palette.path, 0.9);
+    g.drawRect(0, groundY + 4, width, laneHeight);
+    g.endFill();
+  };
 }

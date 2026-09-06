@@ -7,6 +7,10 @@ const TARGET_HEIGHT = 110; // on-screen character height in px, regardless of so
 const RUN_STEP_INTERVAL = 0.18; // seconds between footstep dust puffs at speedMultiplier = 1
 const DAMAGE_FLASH_DURATION = 0.15;
 
+const HEALTH_BAR_WIDTH = 46;
+const HEALTH_BAR_HEIGHT = 5;
+const HEALTH_BAR_Y = -(TARGET_HEIGHT + 18);
+
 function sliceFrames(anim: CharacterAnimation): PIXI.Texture[] {
   const baseTexture = PIXI.BaseTexture.from(anim.src, { scaleMode: PIXI.SCALE_MODES.NEAREST });
   const frames: PIXI.Texture[] = [];
@@ -25,6 +29,7 @@ export class Player {
   private readonly sprite: PIXI.AnimatedSprite;
   private readonly textures: Record<AnimState, PIXI.Texture[]>;
   private readonly scale: number;
+  private readonly healthBarFill: PIXI.Graphics;
 
   private state: AnimState = 'run';
   private inCombat = false;
@@ -56,7 +61,34 @@ export class Player {
     this.sprite.animationSpeed = character.animations.run.fps / 60;
     this.sprite.play();
 
-    this.container.addChild(this.sprite);
+    this.healthBarFill = new PIXI.Graphics();
+    this.container.addChild(this.sprite, this.createHealthBar());
+  }
+
+  private createHealthBar(): PIXI.Container {
+    const wrap = new PIXI.Container();
+    wrap.y = HEALTH_BAR_Y;
+
+    const track = new PIXI.Graphics();
+    track.beginFill(0x1c1c1c, 0.6);
+    track.drawRoundedRect(-HEALTH_BAR_WIDTH / 2, 0, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, 2);
+    track.endFill();
+    wrap.addChild(track);
+
+    this.healthBarFill.beginFill(0x4ade80);
+    this.healthBarFill.drawRoundedRect(0, 0, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, 2);
+    this.healthBarFill.endFill();
+    this.healthBarFill.x = -HEALTH_BAR_WIDTH / 2;
+    wrap.addChild(this.healthBarFill);
+
+    return wrap;
+  }
+
+  /** Updates the floating health bar above the player's head. */
+  setHealth(current: number, max: number): void {
+    const ratio = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
+    this.healthBarFill.scale.x = ratio;
+    this.healthBarFill.tint = ratio > 0.5 ? 0x4ade80 : ratio > 0.25 ? 0xfacc15 : 0xef4444;
   }
 
   update(deltaSeconds: number, speedMultiplier: number): void {
