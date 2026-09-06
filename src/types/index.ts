@@ -13,6 +13,12 @@ export interface CharacterAnimation {
    * land on the ground line.
    */
   bottomPadding: number;
+  /**
+   * For the attack animation only: the 0-indexed frame at which the hit
+   * lands / the projectile launches. Defaults to the second-to-last frame
+   * when omitted.
+   */
+  hitFrame?: number;
 }
 
 export interface CharacterClass {

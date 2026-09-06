@@ -49,7 +49,15 @@ export const CHARACTERS: CharacterClass[] = [
     animations: {
       idle: { src: mageIdle, frameWidth: 96, frameHeight: 64, frameCount: 5, fps: 6, bottomPadding: 13 },
       run: { src: mageRun, frameWidth: 96, frameHeight: 64, frameCount: 8, fps: 12, bottomPadding: 12 },
-      attack: { src: mageAttack, frameWidth: 96, frameHeight: 64, frameCount: 7, fps: 14, bottomPadding: 13 },
+      attack: {
+        src: mageAttack,
+        frameWidth: 96,
+        frameHeight: 64,
+        frameCount: 7,
+        fps: 14,
+        bottomPadding: 13,
+        hitFrame: 3,
+      },
     },
   },
   {
@@ -80,7 +88,15 @@ export const CHARACTERS: CharacterClass[] = [
     animations: {
       idle: { src: archerIdle, frameWidth: 96, frameHeight: 80, frameCount: 14, fps: 8, bottomPadding: 16 },
       run: { src: archerRun, frameWidth: 96, frameHeight: 80, frameCount: 8, fps: 12, bottomPadding: 16 },
-      attack: { src: archerAttack, frameWidth: 96, frameHeight: 80, frameCount: 11, fps: 16, bottomPadding: 16 },
+      attack: {
+        src: archerAttack,
+        frameWidth: 96,
+        frameHeight: 80,
+        frameCount: 11,
+        fps: 16,
+        bottomPadding: 16,
+        hitFrame: 7,
+      },
     },
   },
   {

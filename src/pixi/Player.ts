@@ -111,9 +111,11 @@ export class Player {
         this.stepped = true;
       }
     } else {
-      // Fire on the penultimate frame of the swing/shot -- where the sprite sheets actually
-      // land their hit/release -- rather than at a fixed time offset unrelated to the art.
-      const targetFrame = Math.max(0, this.character.animations.attack.frameCount - 2);
+      // Fire on the frame where the sprite sheet actually lands its hit/release
+      // (per-character hitFrame if set, otherwise the penultimate frame) rather
+      // than at a fixed time offset unrelated to the art.
+      const anim = this.character.animations.attack;
+      const targetFrame = anim.hitFrame ?? Math.max(0, anim.frameCount - 2);
       const frame = this.sprite.currentFrame;
       if (frame === targetFrame && this.prevAttackFrame !== targetFrame) {
         this.attackTicked = true;
