@@ -46,14 +46,7 @@ export function CharacterSelect({
             <button
               key={character.id}
               className={`char-card${isActive ? ' active' : ''}`}
-              style={
-                isActive
-                  ? {
-                      borderColor: `#${character.accentColor.toString(16).padStart(6, '0')}`,
-                      color: `#${character.accentColor.toString(16).padStart(6, '0')}`,
-                    }
-                  : undefined
-              }
+              style={isActive ? { borderColor: `#${character.accentColor.toString(16).padStart(6, '0')}` } : undefined}
               onClick={() => setPickedId(character.id)}
             >
               <div className="char-card-preview">
