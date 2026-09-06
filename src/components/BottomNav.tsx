@@ -16,7 +16,6 @@ interface BottomNavProps {
 export function BottomNav({ active, onChange }: BottomNavProps) {
   return (
     <nav className="bottom-nav">
-      <span className="bottom-nav-handle" />
       {NAV_TABS.map((tab) => (
         <button
           key={tab.id}
