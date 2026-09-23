@@ -47,6 +47,8 @@ export class Player {
   private stepTimer = 0;
   private stepped = false;
   private flashTimer = 0;
+  /** Attacks per second: one full attack-animation loop per attack. */
+  private attacksPerSecond = 1;
 
   constructor(x: number, y: number, character: CharacterClass) {
     this.character = character;
@@ -142,7 +144,7 @@ export class Player {
 
     const def = this.character.animations[next];
     this.sprite.textures = this.textures[next];
-    this.sprite.animationSpeed = def.fps / 60;
+    this.sprite.animationSpeed = next === 'attack' ? this.attackAnimationSpeed() : def.fps / 60;
     this.sprite.y = def.bottomPadding * this.scale;
     this.sprite.loop = true;
     this.sprite.gotoAndPlay(0);
@@ -152,6 +154,16 @@ export class Player {
     } else {
       this.stepTimer = 0;
     }
+  }
+
+  /** Sets how many attacks per second land; the attack animation plays at exactly that rate. */
+  setAttackSpeed(attacksPerSecond: number): void {
+    this.attacksPerSecond = Math.max(0.1, attacksPerSecond);
+    if (this.state === 'attack') this.sprite.animationSpeed = this.attackAnimationSpeed();
+  }
+
+  private attackAnimationSpeed(): number {
+    return (this.character.animations.attack.frameCount * this.attacksPerSecond) / 60;
   }
 
   flashDamage(): void {

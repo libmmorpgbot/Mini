@@ -17,10 +17,11 @@ export class DamageNumberEmitter {
     this.container = new PIXI.Container();
   }
 
-  spawn(x: number, y: number, amount: number, color: number): void {
-    const text = new PIXI.Text(`${Math.round(amount)}`, {
+  /** Floats a damage number (or a short label such as a skill name) up from (x, y). */
+  spawn(x: number, y: number, amount: number | string, color: number, fontSize = 18): void {
+    const text = new PIXI.Text(typeof amount === 'number' ? `${Math.round(amount)}` : amount, {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: 18,
+      fontSize,
       fontWeight: '800',
       fill: color,
       stroke: 0x1c1c1c,

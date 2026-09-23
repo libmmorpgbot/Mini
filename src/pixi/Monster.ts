@@ -1,134 +1,139 @@
 import * as PIXI from 'pixi.js';
+import type { MonsterDef, MonsterSheet } from '../data/monsters';
 
-const PULSE_SPEED = 6;
-const PULSE_AMOUNT = 0.05;
-const ATTACK_LUNGE_DISTANCE = 10;
-const ATTACK_LUNGE_DURATION = 0.18;
 const HIT_RECOIL_DISTANCE = 6;
 const HIT_RECOIL_DURATION = 0.15;
-const HEALTH_BAR_WIDTH = 40;
+const HEALTH_BAR_WIDTH = 46;
 const HEALTH_BAR_HEIGHT = 5;
-const HEALTH_BAR_Y = -72;
 const LEVEL_BADGE_RADIUS = 8;
+/** Monster sheets are 64px or 128px frames; both land on the same on-screen size. */
+const TARGET_FRAME_PX = 150;
+const BOSS_SCALE = 1.35;
+/** Enemies swing every 1.4-2.0 s (server/game/Room.js). */
+const ATTACK_INTERVAL_MIN = 1.4;
+const ATTACK_INTERVAL_MAX = 2.0;
+const DEATH_FADE_SECONDS = 0.35;
+/** Share of their own walking speed monsters approach with, on top of the world scroll. */
+const OWN_WALK_FACTOR = 0.5;
 
-// The body is drawn with its feet at local y = 0, growing upward (negative y),
-// so the container's own y can sit directly on the ground line.
-const BODY_TOP = -48;
+const textureCache = new Map<string, PIXI.Texture[]>();
+
+/** Must be called when the Pixi app that owns these textures is destroyed. */
+export function clearMonsterTextureCache(): void {
+  textureCache.clear();
+}
+
+/** Row 2 of a 4-direction sheet: the monster facing left, toward the hero. */
+function leftFacingFrames(sheet: MonsterSheet, frameSize: number): PIXI.Texture[] {
+  const key = `${sheet.src}|${frameSize}`;
+  const cached = textureCache.get(key);
+  if (cached) return cached;
+  const base = PIXI.BaseTexture.from(sheet.src, { scaleMode: PIXI.SCALE_MODES.NEAREST });
+  const frames: PIXI.Texture[] = [];
+  for (let i = 0; i < sheet.cols; i++) {
+    frames.push(new PIXI.Texture(base, new PIXI.Rectangle(i * frameSize, 2 * frameSize, frameSize, frameSize)));
+  }
+  textureCache.set(key, frames);
+  return frames;
+}
+
+export interface MonsterSpawn {
+  def: MonsterDef;
+  name: string;
+  nameColor: number;
+  level: number;
+  isBoss: boolean;
+  maxHealth: number;
+  atk: number;
+  armor: number;
+}
 
 let nextId = 0;
 
 export class Monster {
   readonly id: number;
   readonly container: PIXI.Container;
-  readonly maxHealth: number;
-  readonly damage: number;
-  readonly attackIntervalSeconds: number;
+  readonly def: MonsterDef;
   readonly level: number;
+  readonly isBoss: boolean;
+  readonly maxHealth: number;
+  readonly atk: number;
+  readonly armor: number;
 
   health: number;
+  /** Seconds left stunned/frozen: no attacks, no walking. */
+  stunTimer = 0;
 
   private readonly body: PIXI.Container;
+  private readonly sprite: PIXI.AnimatedSprite;
+  private readonly frames: { walk: PIXI.Texture[]; attack: PIXI.Texture[]; death: PIXI.Texture[] };
   private readonly healthBarFill: PIXI.Graphics;
-  private time: number;
+  private readonly headY: number;
   private inRange = false;
   private attackTimer = 0;
+  private nextAttackIn = 0;
   private attackTicked = false;
-  private attackLungeTimer = 0;
   private hitRecoilTimer = 0;
+  private dying = false;
+  private deathFade = 0;
 
-  constructor(
-    x: number,
-    y: number,
-    maxHealth: number,
-    damage: number,
-    attackIntervalSeconds: number,
-    level: number
-  ) {
+  constructor(x: number, y: number, spawn: MonsterSpawn) {
     this.id = nextId++;
-    this.time = Math.random() * Math.PI * 2;
-    this.maxHealth = maxHealth;
-    this.health = maxHealth;
-    this.damage = damage;
-    this.attackIntervalSeconds = attackIntervalSeconds;
-    this.level = level;
+    this.def = spawn.def;
+    this.level = spawn.level;
+    this.isBoss = spawn.isBoss;
+    this.maxHealth = spawn.maxHealth;
+    this.health = spawn.maxHealth;
+    this.atk = spawn.atk;
+    this.armor = spawn.armor;
+    this.rollNextAttack();
+
+    const sprite = spawn.def.sprite;
+    this.frames = {
+      walk: leftFacingFrames(sprite.walk, sprite.frameSize),
+      attack: leftFacingFrames(sprite.attack, sprite.frameSize),
+      death: leftFacingFrames(sprite.death, sprite.frameSize),
+    };
 
     this.container = new PIXI.Container();
     this.container.x = x;
     this.container.y = y;
 
-    this.body = this.createBody();
+    const scale = (TARGET_FRAME_PX / sprite.frameSize) * (spawn.isBoss ? BOSS_SCALE : 1);
+    this.body = new PIXI.Container();
+    this.sprite = new PIXI.AnimatedSprite(this.frames.walk);
+    this.sprite.anchor.set(0.5, sprite.feetY / sprite.frameSize);
+    this.sprite.scale.set(scale);
+    this.sprite.animationSpeed = sprite.walk.fps / 60;
+    this.sprite.play();
+    this.body.addChild(this.sprite);
+
+    // Roughly the top of the figure: sheets leave ~a third of the frame empty above it.
+    this.headY = -sprite.feetY * scale * 0.72;
+
     this.healthBarFill = new PIXI.Graphics();
-
-    this.container.addChild(this.body, this.createHealthBar());
+    this.container.addChild(this.body, this.createHealthBar(spawn));
   }
 
-  private createBody(): PIXI.Container {
-    const container = new PIXI.Container();
-    const g = new PIXI.Graphics();
-
-    // tail
-    g.beginFill(0xa5281c);
-    g.drawPolygon([20, -14, 40, -22, 22, -4]);
-    g.endFill();
-
-    // body
-    g.beginFill(0xe74c3c);
-    g.lineStyle(3, 0x8e2418);
-    g.drawRoundedRect(-24, -48, 48, 48, 10);
-    g.endFill();
-
-    // belly patch
-    g.lineStyle(0);
-    g.beginFill(0xf3a6a6, 0.7);
-    g.drawRoundedRect(-14, -28, 28, 22, 8);
-    g.endFill();
-
-    // horns
-    g.beginFill(0x3a2a2a);
-    g.drawPolygon([-14, -48, -10, -62, -4, -48]);
-    g.drawPolygon([4, -48, 10, -62, 14, -48]);
-    g.endFill();
-
-    // angry eyebrows
-    g.beginFill(0x3a2a2a);
-    g.drawPolygon([-16, -36, -4, -32, -16, -30]);
-    g.drawPolygon([16, -36, 4, -32, 16, -30]);
-    g.endFill();
-
-    // eyes
-    g.beginFill(0xffe066);
-    g.drawCircle(-8, -28, 6);
-    g.drawCircle(8, -28, 6);
-    g.endFill();
-
-    g.beginFill(0x1c1c1c);
-    g.drawCircle(-8, -28, 2.5);
-    g.drawCircle(8, -28, 2.5);
-    g.endFill();
-
-    // mouth + teeth
-    g.beginFill(0x3a1414);
-    g.drawRoundedRect(-12, -16, 24, 10, 4);
-    g.endFill();
-
-    g.beginFill(0xffffff);
-    g.drawPolygon([-9, -16, -5, -16, -7, -10]);
-    g.drawPolygon([1, -16, 5, -16, 3, -10]);
-    g.drawPolygon([9, -16, 13, -16, 11, -10]);
-    g.endFill();
-
-    // back spikes
-    g.beginFill(0xc0392b);
-    g.drawPolygon([-6, -48, 0, -56, 6, -48]);
-    g.endFill();
-
-    container.addChild(g);
-    return container;
+  private rollNextAttack(): void {
+    this.nextAttackIn = ATTACK_INTERVAL_MIN + Math.random() * (ATTACK_INTERVAL_MAX - ATTACK_INTERVAL_MIN);
   }
 
-  private createHealthBar(): PIXI.Container {
+  private createHealthBar(spawn: MonsterSpawn): PIXI.Container {
     const wrap = new PIXI.Container();
-    wrap.y = HEALTH_BAR_Y;
+    wrap.y = this.headY - 14;
+
+    const name = new PIXI.Text(spawn.name, {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: spawn.isBoss ? 12 : 10,
+      fontWeight: '800',
+      fill: spawn.isBoss ? 0xffd166 : spawn.nameColor,
+      stroke: 0x0b0e14,
+      strokeThickness: 3,
+    });
+    name.anchor.set(0.5, 1);
+    name.y = -3;
+    wrap.addChild(name);
 
     const track = new PIXI.Graphics();
     track.beginFill(0x1c1c1c, 0.6);
@@ -149,7 +154,7 @@ export class Monster {
 
     const badge = new PIXI.Graphics();
     badge.lineStyle(1, 0x1c1c1c, 0.6);
-    badge.beginFill(0xffb703);
+    badge.beginFill(spawn.isBoss ? 0xef4444 : 0xffb703);
     badge.drawCircle(badgeX, badgeY, LEVEL_BADGE_RADIUS);
     badge.endFill();
     wrap.addChild(badge);
@@ -174,39 +179,70 @@ export class Monster {
     this.healthBarFill.tint = ratio > 0.5 ? 0x4ade80 : ratio > 0.25 ? 0xfacc15 : 0xef4444;
   }
 
-  /** Whether the player is within melee range: stops the monster and starts its own attack timer. */
+  private play(frames: PIXI.Texture[], fps: number, loop: boolean): void {
+    this.sprite.textures = frames;
+    this.sprite.animationSpeed = fps / 60;
+    this.sprite.loop = loop;
+    this.sprite.gotoAndPlay(0);
+  }
+
+  /** Whether the hero is within reach: stops the monster and starts its own attack timer. */
   setInRange(inRange: boolean): void {
-    if (this.inRange === inRange) return;
+    if (this.inRange === inRange || this.dying) return;
     this.inRange = inRange;
-    if (inRange) this.attackTimer = 0;
+    if (inRange) {
+      this.attackTimer = 0;
+    } else {
+      this.play(this.frames.walk, this.def.sprite.walk.fps, true);
+    }
   }
 
   get isInRange(): boolean {
     return this.inRange;
   }
 
-  update(deltaSeconds: number, speed: number): void {
-    if (!this.inRange) {
-      this.container.x -= speed * deltaSeconds;
-      this.container.rotation = Math.sin(this.container.x * 0.03) * 0.08;
+  get isDying(): boolean {
+    return this.dying;
+  }
+
+  /** True once the death animation and fade are over and it can be removed. */
+  get isGone(): boolean {
+    return this.dying && this.deathFade >= DEATH_FADE_SECONDS;
+  }
+
+  update(deltaSeconds: number, worldSpeed: number): void {
+    if (this.dying) {
+      this.container.x -= worldSpeed * deltaSeconds;
+      if (!this.sprite.playing) {
+        this.deathFade += deltaSeconds;
+        this.container.alpha = Math.max(0, 1 - this.deathFade / DEATH_FADE_SECONDS);
+      }
+      return;
+    }
+
+    const stunned = this.stunTimer > 0;
+    if (stunned) {
+      this.stunTimer -= deltaSeconds;
+      this.sprite.tint = 0x9fd8ff;
     } else {
-      this.container.rotation = 0;
+      this.sprite.tint = 0xffffff;
+    }
+
+    if (!this.inRange) {
+      const own = stunned ? 0 : this.def.spd * OWN_WALK_FACTOR;
+      this.container.x -= (worldSpeed + own) * deltaSeconds;
+      this.sprite.animationSpeed = stunned ? 0 : this.def.sprite.walk.fps / 60;
+    } else if (!stunned) {
       this.attackTimer += deltaSeconds;
-      if (this.attackTimer >= this.attackIntervalSeconds) {
-        this.attackTimer -= this.attackIntervalSeconds;
+      if (this.attackTimer >= this.nextAttackIn) {
+        this.attackTimer = 0;
+        this.rollNextAttack();
         this.attackTicked = true;
-        this.attackLungeTimer = ATTACK_LUNGE_DURATION;
+        this.play(this.frames.attack, this.def.sprite.attack.fps, false);
       }
     }
 
-    this.time += deltaSeconds * PULSE_SPEED;
-    this.body.scale.set(1, 1 + Math.sin(this.time) * PULSE_AMOUNT);
-
     let offsetX = 0;
-    if (this.attackLungeTimer > 0) {
-      this.attackLungeTimer -= deltaSeconds;
-      offsetX -= Math.sin(Math.max(0, this.attackLungeTimer / ATTACK_LUNGE_DURATION) * Math.PI) * ATTACK_LUNGE_DISTANCE;
-    }
     if (this.hitRecoilTimer > 0) {
       this.hitRecoilTimer -= deltaSeconds;
       offsetX += Math.sin(Math.max(0, this.hitRecoilTimer / HIT_RECOIL_DURATION) * Math.PI) * HIT_RECOIL_DISTANCE;
@@ -214,19 +250,33 @@ export class Monster {
     this.body.x = offsetX;
   }
 
-  /** Returns true once per attack-interval while the player is in range, then resets. */
+  /** Returns true once per swing while the hero is in range, then resets. */
   consumeAttackTick(): boolean {
     const ticked = this.attackTicked;
     this.attackTicked = false;
     return ticked;
   }
 
-  /** Applies damage and returns true if this killed the monster. */
+  /** Applies damage and returns true if this killed the monster (which then plays its death animation). */
   takeDamage(amount: number): boolean {
+    if (this.dying) return false;
     this.health = Math.max(0, this.health - amount);
     this.updateHealthBar();
     this.hitRecoilTimer = HIT_RECOIL_DURATION;
-    return this.health <= 0;
+    if (this.health > 0) return false;
+
+    this.dying = true;
+    this.inRange = false;
+    this.sprite.tint = 0xffffff;
+    this.play(this.frames.death, this.def.sprite.death.fps, false);
+    return true;
+  }
+
+  /** Shoves the monster away from the hero (the hero "leaps back"). */
+  pushBack(px: number, maxX: number): void {
+    if (this.dying) return;
+    this.container.x = Math.min(maxX, this.container.x + px);
+    this.setInRange(false);
   }
 
   get x(): number {
@@ -234,7 +284,7 @@ export class Monster {
   }
 
   get topPosition(): { x: number; y: number } {
-    return { x: this.container.x, y: this.container.y + BODY_TOP };
+    return { x: this.container.x, y: this.container.y + this.headY };
   }
 
   destroy(): void {

@@ -1,4 +1,5 @@
 import type { LocationDef } from '../data/locations';
+import { ENEMY_BY_ID } from '../data/monsters';
 
 function toCss(color: number): string {
   return `#${color.toString(16).padStart(6, '0')}`;
@@ -38,6 +39,7 @@ export function MapPanel({ locations, playerLevel, activeLocationId, onSelect }:
                   {locked
                     ? `Открывается на ${location.minLevel} ур.`
                     : `Монстры ${location.monsterLevelRange[0]}-${location.monsterLevelRange[1]} ур.`}
+                  {location.boss && ` · ${ENEMY_BY_ID[location.boss].name}`}
                 </span>
               </span>
               {active && <span className="map-card-badge">Сейчас здесь</span>}

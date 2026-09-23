@@ -519,3 +519,496 @@
   font-size: 10px;
   font-weight: 600;
 }
+
+.bottom-nav-icon {
+  position: relative;
+}
+
+.bottom-nav-dot {
+  position: absolute;
+  top: -2px;
+  right: -6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0 0 2px #171d2a;
+}
+
+/* ---------- In-game overlays ---------- */
+
+.location-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(10, 14, 22, 0.6);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.battle-info {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.battle-chip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(10, 14, 22, 0.6);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.battle-chip-buff {
+  color: #c9a3ff;
+}
+
+.drop-feed {
+  position: absolute;
+  top: 40px;
+  left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 60%;
+  pointer-events: none;
+}
+
+.drop-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 4px;
+  border-radius: 8px;
+  border: 1px solid;
+  background: rgba(10, 14, 22, 0.75);
+  font-size: 12px;
+  font-weight: 700;
+  animation: drop-in 0.25s ease-out;
+}
+
+.drop-feed-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+.skill-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+
+.skill-slot {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid rgba(201, 163, 255, 0.8);
+  background: rgba(10, 14, 22, 0.7);
+}
+
+.skill-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.skill-slot.locked {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.skill-slot.locked img {
+  filter: grayscale(1) brightness(0.45);
+}
+
+.skill-slot-cd {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.skill-slot-cd span {
+  position: absolute;
+  bottom: 50%;
+  transform: translateY(50%);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.skill-slot-key,
+.skill-slot-lvl,
+.skill-slot-lock {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 3px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.skill-slot-key {
+  top: 1px;
+  left: 1px;
+}
+
+.skill-slot-lvl {
+  bottom: 1px;
+  right: 1px;
+  color: #ffd166;
+}
+
+.skill-slot-lock {
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  background: none;
+}
+
+/* ---------- Inventory / skills / shop panels ---------- */
+
+.inv-panel,
+.skills-panel,
+.shop-panel {
+  padding: 16px 16px 24px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.panel-title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.panel-subtitle {
+  margin: 18px 0 8px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.panel-subtitle small,
+.skill-card-name small,
+.upgrade-name small,
+.consumable small {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+}
+
+.consumable small {
+  display: block;
+}
+
+.panel-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.btn {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #7c5cff, #5b3fd6);
+  border-color: transparent;
+}
+
+.btn-small {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.item-cell {
+  width: 52px;
+  height: 52px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 2px solid;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.item-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.item-cell.empty {
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  font-size: 20px;
+  opacity: 0.5;
+  cursor: default;
+}
+
+.item-cell.dim {
+  opacity: 0.45;
+}
+
+.inv-equipment {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 8px;
+}
+
+.inv-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.inv-slot-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.inv-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 8px;
+  justify-items: center;
+}
+
+.inv-consumables,
+.consumables-list,
+.skill-list,
+.upgrade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.consumable {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.consumable > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.consumable img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border-radius: 6px;
+}
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.sheet {
+  width: 100%;
+  padding: 16px 16px 20px;
+  border-radius: 16px 16px 0 0;
+  background: #1a2030;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sheet-name {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sheet-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.sheet-compare {
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.item-stats {
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.item-stats b {
+  color: #7bd88f;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sheet-actions .btn {
+  flex: 1 1 0;
+}
+
+.skill-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(201, 163, 255, 0.35);
+}
+
+.skill-card.locked {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.skill-card-icon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.skill-card-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.skill-card.locked .skill-card-icon img {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.skill-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.skill-card-name {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.skill-card-desc,
+.skill-card-books {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 2px;
+}
+
+.roll-ok {
+  color: #7bd88f;
+  font-weight: 800;
+}
+
+.roll-fail {
+  color: #ff6b6b;
+  font-weight: 800;
+}
+
+.upgrade-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upgrade-icon {
+  font-size: 18px;
+}
+
+.upgrade-name {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.upgrade-level {
+  min-width: 24px;
+  text-align: right;
+  font-weight: 800;
+  color: #ffd166;
+}

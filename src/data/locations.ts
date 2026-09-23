@@ -1,5 +1,9 @@
 import type { Landmark, ParallaxPalette } from '../pixi/ParallaxBackground';
+import { ARM_OFFSETS, ARM_ROOM_COUNTS } from './gameRules';
 
+// The world of libmmorpgbot-: four corridors off the central hub, each with its
+// own rotation of monster species and a boss at the end, plus the Farm Zone
+// (shared/definitions.js: FLOOR_ENEMIES, ARM_LEVEL_REQ, FARM_*).
 export interface LocationDef {
   id: string;
   name: string;
@@ -7,23 +11,39 @@ export interface LocationDef {
   icon: string;
   /** Player level at which this location unlocks. */
   minLevel: number;
-  /** Bounds for the level rolled for monsters spawned here. */
+  /** Bounds for the (global) level rolled for monsters spawned here. */
   monsterLevelRange: [number, number];
-  /** Multiplies monster health/damage on top of their own level scaling. */
-  statMultiplier: number;
+  /** Corridor index 1-4 (drives the drop multipliers); 0 for the Farm Zone. */
+  arm: number;
+  /** Species rotated through room by room, weakest → strongest. */
+  species: string[];
+  /** Boss that spawns every MINI_RATES.bossEveryKills kills (corridors only). */
+  boss?: string;
+  /**
+   * Farm Zone: every monster is a random pick from `farmPool`, gives
+   * `xpMult`× XP and drops no gear or books (same as the original).
+   */
+  farmPool?: string[];
+  xpMult?: number;
   palette: ParallaxPalette;
   landmark: Landmark;
 }
 
+function armRange(arm: number): [number, number] {
+  return [ARM_OFFSETS[arm - 1] + 1, ARM_OFFSETS[arm - 1] + ARM_ROOM_COUNTS[arm - 1]];
+}
+
 export const LOCATIONS: LocationDef[] = [
   {
-    id: 'forest',
-    name: 'Лес',
-    description: 'Спокойные тропы для начала пути',
-    icon: '🌲',
+    id: 'left',
+    name: 'Левый коридор',
+    description: 'Крысы, слизни и бесы',
+    icon: '🐀',
     minLevel: 1,
-    monsterLevelRange: [1, 5],
-    statMultiplier: 1,
+    monsterLevelRange: armRange(1),
+    arm: 1,
+    species: ['rat', 'slime', 'imp'],
+    boss: 'imp_boss',
     landmark: 'trees',
     palette: {
       skyTop: 0x3d7ab8,
@@ -39,13 +59,15 @@ export const LOCATIONS: LocationDef[] = [
     },
   },
   {
-    id: 'graveyard',
-    name: 'Кладбище',
-    description: 'Туманные могилы и беспокойные духи',
-    icon: '🪦',
-    minLevel: 6,
-    monsterLevelRange: [6, 10],
-    statMultiplier: 1.4,
+    id: 'top',
+    name: 'Верхний коридор',
+    description: 'Зомби, ящеры и орки',
+    icon: '🧟',
+    minLevel: 20,
+    monsterLevelRange: armRange(2),
+    arm: 2,
+    species: ['zombie', 'lizardman', 'orc'],
+    boss: 'orc_boss',
     landmark: 'graves',
     palette: {
       skyTop: 0x2e2f42,
@@ -61,13 +83,40 @@ export const LOCATIONS: LocationDef[] = [
     },
   },
   {
-    id: 'fortress',
-    name: 'Крепость',
-    description: 'Древние стены на границе земель',
-    icon: '🏰',
-    minLevel: 11,
-    monsterLevelRange: [11, 15],
-    statMultiplier: 1.8,
+    id: 'farm',
+    name: 'Фарм зона',
+    description: 'Зомби, ящеры и орки 21-30 ур. Опыт ×3, но без снаряжения и книг',
+    icon: '🌾',
+    minLevel: 20,
+    monsterLevelRange: [21, 30],
+    arm: 0,
+    species: ['zombie', 'lizardman', 'orc'],
+    farmPool: ['zombie_guard', 'zombie_warrior', 'lizardman_guard', 'lizardman_warrior', 'orc_guard', 'orc_warrior'],
+    xpMult: 3,
+    landmark: 'volcano',
+    palette: {
+      skyTop: 0x2a0d0d,
+      skyMid: 0x6b1a1a,
+      skyBottom: 0xc9502a,
+      hillFar: 0x5a1f1f,
+      hillNear: 0x2e0f0f,
+      groundTop: 0x4a1c14,
+      groundBottom: 0x1a0a08,
+      path: 0x8a3a1a,
+      accent: 0xffcf5c,
+      cloud: 0xffb37a,
+    },
+  },
+  {
+    id: 'bottom',
+    name: 'Нижний коридор',
+    description: 'Лозы, вампиры и бехолдеры',
+    icon: '🧛',
+    minLevel: 40,
+    monsterLevelRange: armRange(3),
+    arm: 3,
+    species: ['plant', 'vampire', 'beholder'],
+    boss: 'beholder_boss',
     landmark: 'fortress',
     palette: {
       skyTop: 0x334155,
@@ -83,13 +132,15 @@ export const LOCATIONS: LocationDef[] = [
     },
   },
   {
-    id: 'diablo',
-    name: 'Диабло',
-    description: 'Разлом в преисподнюю пылает гневом',
+    id: 'right',
+    name: 'Правый коридор',
+    description: 'Древни и демоны',
     icon: '😈',
-    minLevel: 16,
-    monsterLevelRange: [16, 20],
-    statMultiplier: 2.3,
+    minLevel: 60,
+    monsterLevelRange: armRange(4),
+    arm: 4,
+    species: ['ent', 'demon'],
+    boss: 'demon_boss',
     landmark: 'rift',
     palette: {
       skyTop: 0x1a0a12,
@@ -104,34 +155,12 @@ export const LOCATIONS: LocationDef[] = [
       cloud: 0x8a3a3a,
     },
   },
-  {
-    id: 'lava',
-    name: 'Лава',
-    description: 'Раскалённые земли у подножия вулкана',
-    icon: '🌋',
-    minLevel: 21,
-    monsterLevelRange: [21, 35],
-    statMultiplier: 2.8,
-    landmark: 'volcano',
-    palette: {
-      skyTop: 0x2a0d0d,
-      skyMid: 0x6b1a1a,
-      skyBottom: 0xc9502a,
-      hillFar: 0x5a1f1f,
-      hillNear: 0x2e0f0f,
-      groundTop: 0x4a1c14,
-      groundBottom: 0x1a0a08,
-      path: 0x8a3a1a,
-      accent: 0xffcf5c,
-      cloud: 0xffb37a,
-    },
-  },
 ];
 
 export function getLocationForLevel(level: number): LocationDef {
   let current = LOCATIONS[0];
   for (const location of LOCATIONS) {
-    if (level >= location.minLevel) {
+    if (location.arm > 0 && level >= location.minLevel) {
       current = location;
     }
   }

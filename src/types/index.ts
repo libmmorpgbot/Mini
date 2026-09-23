@@ -1,3 +1,6 @@
+import type { SkillKey, UpgradeKey } from '../data/gameRules';
+import type { GearSlot } from '../data/items';
+
 export interface CharacterAnimation {
   src: string;
   frameWidth: number;
@@ -27,8 +30,16 @@ export interface CharacterClass {
   /** Accusative form of `name`, for phrases like "В бой за {nameAccusative}". */
   nameAccusative: string;
   title: string;
-  baseHealth: number;
-  baseDamage: number;
+  /**
+   * The libmmorpgbot- class this hero plays as: its base stats, weapons and
+   * Q/W/E/R skills (CHAR_DEF / SKILL_DEF there).
+   */
+  sourceClass: string;
+  baseHP: number;
+  baseAtk: number;
+  baseDef: number;
+  /** Attacks per second at level 1. */
+  atkSpeed: number;
   /** Accent color used for this character's UI highlights (hex, e.g. 0xff0000). */
   accentColor: number;
   /** Distance (px) at which this character engages a monster instead of closing in further. */
@@ -42,18 +53,38 @@ export interface CharacterClass {
   };
 }
 
+export interface GearInstance {
+  /** Unique per save, so two copies of the same item can be told apart. */
+  uid: number;
+  id: string;
+}
+
 export interface GameState {
-  /** Constant for the run, captured from the chosen character at (re)start. */
-  baseHealth: number;
+  /** Id of the CharacterClass this save belongs to. */
+  classId: string;
   gold: number;
   gems: number;
   level: number;
   xp: number;
   xpToNextLevel: number;
   health: number;
+  /** Derived from level/upgrades/gear; kept here so health can be clamped to it. */
   maxHealth: number;
   /** Run-speed multiplier, 1 = 100%. Grows +5% per level. */
   speed: number;
+  /** Skill points spent per stat ("Улучшения"). */
+  upgrades: Record<UpgradeKey, number>;
+  /** Q/W/E/R levels; 0 = not learned yet. */
+  skillLevels: Record<SkillKey, number>;
+  /** Gear in the bag. */
+  inventory: GearInstance[];
+  equipment: Partial<Record<GearSlot, GearInstance>>;
+  /** Skill books by id → count. */
+  books: Record<string, number>;
+  /** Potions by id → count. */
+  potions: Record<string, number>;
+  kills: number;
+  nextUid: number;
 }
 
 export interface TelegramUser {

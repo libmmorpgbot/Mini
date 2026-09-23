@@ -1,4 +1,5 @@
 import type { CharacterClass, GameState } from '../types';
+import type { PlayerStats } from '../game/stats';
 import { staticFrameStyle } from '../utils/characterVisuals';
 
 interface StubPanelProps {
@@ -20,9 +21,24 @@ export function StubPanel({ icon, title, text }: StubPanelProps) {
 interface ProfilePanelProps {
   character: CharacterClass;
   state: GameState;
+  stats: PlayerStats;
 }
 
-export function ProfilePanel({ character, state }: ProfilePanelProps) {
+export function ProfilePanel({ character, state, stats }: ProfilePanelProps) {
+  const rows: [string, string | number][] = [
+    ['Уровень', state.level],
+    ['Здоровье', `${Math.round(state.health)}/${state.maxHealth}`],
+    ['Атака', stats.atk],
+    ['Защита', stats.def],
+    ['Шанс крита', `${Math.round(stats.critChance * 100)}%`],
+    ['Сила крита', `×${stats.critPower.toFixed(2)}`],
+    ['Скор. атаки', `${stats.atkSpeed.toFixed(2)}/с`],
+    ['Реген', `${stats.hpRegen.toFixed(2)}/с`],
+    ['Убито монстров', state.kills],
+    ['Золото', state.gold],
+    ['Кристаллы', state.gems],
+  ];
+
   return (
     <div className="profile-panel">
       <div className="profile-avatar" style={staticFrameStyle(character.animations.idle, 96)} />
@@ -30,24 +46,12 @@ export function ProfilePanel({ character, state }: ProfilePanelProps) {
       <p className="profile-title">{character.title}</p>
 
       <div className="profile-stats">
-        <div className="profile-stat">
-          <span className="profile-stat-label">Уровень</span>
-          <span className="profile-stat-value">{state.level}</span>
-        </div>
-        <div className="profile-stat">
-          <span className="profile-stat-label">Здоровье</span>
-          <span className="profile-stat-value">
-            {Math.round(state.health)}/{state.maxHealth}
-          </span>
-        </div>
-        <div className="profile-stat">
-          <span className="profile-stat-label">Золото</span>
-          <span className="profile-stat-value">{state.gold}</span>
-        </div>
-        <div className="profile-stat">
-          <span className="profile-stat-label">Кристаллы</span>
-          <span className="profile-stat-value">{state.gems}</span>
-        </div>
+        {rows.map(([label, value]) => (
+          <div key={label} className="profile-stat">
+            <span className="profile-stat-label">{label}</span>
+            <span className="profile-stat-value">{value}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -1,18 +1,19 @@
 import type { CharacterClass, GameState } from '../types';
+import type { PlayerStats } from '../game/stats';
+import { battlePower } from '../game/stats';
 import { staticFrameStyle } from '../utils/characterVisuals';
 
 interface HUDProps {
   character: CharacterClass;
   state: GameState;
-  speed: number;
+  stats: PlayerStats;
 }
 
 const AVATAR_HEIGHT = 44;
 
-export function HUD({ character, state, speed }: HUDProps) {
+export function HUD({ character, state, stats }: HUDProps) {
   const healthPercent = state.maxHealth > 0 ? Math.min(100, (state.health / state.maxHealth) * 100) : 0;
   const xpPercent = state.xpToNextLevel > 0 ? Math.min(100, (state.xp / state.xpToNextLevel) * 100) : 0;
-  const power = Math.round(state.maxHealth * 0.5 + character.baseDamage * 8 + (state.level - 1) * 10);
 
   return (
     <div className="header">
@@ -41,7 +42,7 @@ export function HUD({ character, state, speed }: HUDProps) {
       <div className="header-stats">
         <div className="stat-chip stat-chip-power">
           <span className="stat-chip-icon">⚔️</span>
-          <span className="stat-chip-value">{power}</span>
+          <span className="stat-chip-value">{battlePower(stats)}</span>
         </div>
         <div className="stat-chip stat-chip-gold">
           <span className="stat-chip-icon">💰</span>
@@ -53,7 +54,7 @@ export function HUD({ character, state, speed }: HUDProps) {
         </div>
         <div className="stat-chip stat-chip-speed">
           <span className="stat-chip-icon">⚡</span>
-          <span className="stat-chip-value">{Math.round(speed * 100)}%</span>
+          <span className="stat-chip-value">{Math.round(state.speed * 100)}%</span>
         </div>
       </div>
     </div>
