@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { CORRIDORS, FARM_ZONE, ROOMS, isUnlocked, type LocationDef } from '../data/locations';
 import { ENEMY_BY_ID } from '../data/monsters';
-import { RARITY_COLOR, RARITY_LABEL } from '../data/items';
-import { BOOK_BY_ID } from '../data/skills';
-import { MINI_RATES } from '../data/gameRules';
+import { EQ_SLOTS, RARITY_COLOR, RARITY_LABEL } from '../data/items';
+import { CHARACTERS } from '../data/characters';
 import { dropTable } from '../game/loot';
 import { roomMonster } from '../game/spawn';
 import { Icon } from './Icon';
@@ -16,13 +15,17 @@ interface MapPanelProps {
   onSelect: (locationId: string) => void;
 }
 
+/** Which hero can wear a class-locked weapon. */
+const CLASS_LABEL: Record<string, string> = Object.fromEntries(CHARACTERS.map((c) => [c.sourceClass, c.name]));
+
 function pct(chance: number): string {
   const p = chance * 100;
   if (p >= 99.95) return '100%';
   if (p >= 10) return `${p.toFixed(0)}%`;
   if (p >= 1) return `${p.toFixed(1)}%`;
   if (p >= 0.01) return `${p.toFixed(2)}%`;
-  return `${p.toPrecision(1)}%`;
+  if (p >= 0.001) return `${p.toFixed(3)}%`;
+  return `${p.toPrecision(2)}%`;
 }
 
 function hex(color: number): string {
@@ -67,13 +70,9 @@ function LocationSheet({
 }) {
   const locked = !isUnlocked(location, playerLevel);
   const table = dropTable(location, sourceClass);
-  const monsters = location.farmPool
-    ? location.farmPool.map((eid) => ENEMY_BY_ID[eid])
-    : [roomMonster(location).def];
+  const monsters = location.farmPool ? location.farmPool.map((eid) => ENEMY_BY_ID[eid]) : [];
   const preview = location.farmPool ? null : roomMonster(location);
-  const boss = location.boss ? roomMonster(location, true) : null;
   const [minLvl, maxLvl] = location.monsterLevelRange;
-  const book = table.book ? BOOK_BY_ID[table.book.id] : null;
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -92,113 +91,74 @@ function LocationSheet({
         </div>
 
         <div className="sheet-section-title">Монстры</div>
-        <div className="loc-monsters">
-          {preview ? (
-            <div className="loc-monster">
-              <MonsterThumb def={preview.def} size={56} />
-              <div>
-                <div className="loc-monster-name" style={{ color: hex(preview.nameColor) }}>
-                  {preview.name}
-                </div>
-                <div className="stat-line">
-                  <span><Icon name="heart" size={13} /> {preview.stats.hp}</span>
-                  <span><Icon name="sword" size={13} /> {preview.stats.atk}</span>
-                  <span><Icon name="shield" size={13} /> {preview.stats.def}</span>
-                </div>
+        {preview ? (
+          <div className="loc-monster">
+            <MonsterThumb def={preview.def} size={56} />
+            <div>
+              <div className="loc-monster-name" style={{ color: hex(preview.nameColor) }}>
+                {preview.name}
+              </div>
+              <div className="stat-line">
+                <span><Icon name="heart" size={13} /> {preview.stats.hp}</span>
+                <span><Icon name="sword" size={13} /> {preview.stats.atk}</span>
+                <span><Icon name="shield" size={13} /> {preview.stats.def}</span>
               </div>
             </div>
-          ) : (
-            <div className="loc-monster-row">
-              {monsters.map((m) => (
-                <div key={m.eid} className="loc-monster-mini">
-                  <MonsterThumb def={m} size={44} />
-                  <span>{m.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {boss && (
-            <div className="loc-monster boss">
-              <MonsterThumb def={boss.def} size={56} />
-              <div>
-                <div className="loc-monster-name boss-name">
-                  <Icon name="skull" size={14} /> {boss.name}
-                </div>
-                <div className="stat-line">
-                  <span><Icon name="heart" size={13} /> {boss.stats.hp}</span>
-                  <span><Icon name="sword" size={13} /> {boss.stats.atk}</span>
-                  <span><Icon name="shield" size={13} /> {boss.stats.def}</span>
-                </div>
-                <div className="sheet-sub">Каждые {MINI_RATES.bossEveryKills} убийств</div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="sheet-section-title">Добыча</div>
-        <table className="drop-table">
-          <thead>
-            <tr>
-              <th />
-              <th>Монстр</th>
-              {boss && <th>Босс</th>}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <span className="drop-label">
-                  <Icon name="coin" size={15} className="tint-gold" /> Золото{' '}
-                  {table.gold.min === table.gold.max ? table.gold.min : `${table.gold.min}–${table.gold.max}`}
-                </span>
-              </td>
-              <td>{pct(table.gold.chance)}</td>
-              {boss && <td>{pct(table.gold.bossChance)}</td>}
-            </tr>
-            {table.gear && (
-              <tr>
-                <td>
-                  <span className="drop-label" style={{ color: RARITY_COLOR[table.gear.rarity] }}>
-                    <Icon name="chest" size={15} /> Снаряжение: {RARITY_LABEL[table.gear.rarity].toLowerCase()}
-                  </span>
-                </td>
-                <td>{pct(table.gear.chance)}</td>
-                {boss && <td>{pct(table.gear.bossChance)}</td>}
-              </tr>
-            )}
-            {table.book && book && (
-              <tr>
-                <td>
-                  <span className="drop-label">
-                    <img src={book.img} alt="" className="drop-book-icon" /> {book.name}
-                  </span>
-                </td>
-                <td>{pct(table.book.chance)}</td>
-                {boss && (
-                  <td>
-                    {pct(table.book.bossChance)} ×{table.book.bossQty}
-                  </td>
-                )}
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {table.gear && (
-          <div className="drop-items">
-            {table.gear.items.map((it) => (
-              <div
-                key={it.id}
-                className="item-cell small"
-                title={it.name}
-                style={{ borderColor: RARITY_COLOR[it.rarity] }}
-              >
-                <img src={it.img} alt={it.name} />
+          </div>
+        ) : (
+          <div className="loc-monster-row">
+            {monsters.map((m) => (
+              <div key={m.eid} className="loc-monster-mini">
+                <MonsterThumb def={m} size={44} />
+                <span>{m.name}</span>
               </div>
             ))}
           </div>
         )}
-        {!table.gear && <p className="panel-hint">Снаряжение и книги здесь не выпадают — только золото и опыт ×3.</p>}
+
+        <div className="sheet-section-title">Добыча · шанс с одного монстра</div>
+        <div className="drop-list">
+          <div className="drop-row">
+            <span className="drop-row-icon">
+              <Icon name="coin" size={20} className="tint-gold" />
+            </span>
+            <span className="drop-row-name">
+              Золото
+              <small>{table.gold.min === table.gold.max ? table.gold.min : `${table.gold.min}–${table.gold.max}`} шт.</small>
+            </span>
+            <span className="drop-row-chance">{pct(table.gold.chance)}</span>
+          </div>
+          {table.book && (
+            <div className="drop-row">
+              <span className="drop-row-icon">
+                <img src={table.book.book.img} alt="" />
+              </span>
+              <span className="drop-row-name">
+                {table.book.book.name}
+                <small>Книга навыка {table.book.book.key}</small>
+              </span>
+              <span className="drop-row-chance">{pct(table.book.chance)}</span>
+            </div>
+          )}
+          {table.gear.map(({ item, chance }) => (
+            <div key={item.id} className="drop-row">
+              <span className="drop-row-icon" style={{ borderColor: RARITY_COLOR[item.rarity] }}>
+                <img src={item.img} alt="" />
+              </span>
+              <span className="drop-row-name" style={{ color: RARITY_COLOR[item.rarity] }}>
+                {item.name}
+                <small>
+                  {RARITY_LABEL[item.rarity]} · {EQ_SLOTS.find((s) => s.slot === item.slot)?.label}
+                  {item.forClass && ` · ${item.forClass.map((c) => CLASS_LABEL[c] ?? c).join(', ')}`}
+                </small>
+              </span>
+              <span className="drop-row-chance">{pct(chance)}</span>
+            </div>
+          ))}
+        </div>
+        {table.gear.length === 0 && (
+          <p className="panel-hint">Снаряжение и книги здесь не выпадают — только золото и опыт ×3.</p>
+        )}
 
         <button className="btn btn-primary btn-block" disabled={locked || active} onClick={onGo}>
           {locked ? `Откроется на ${location.minLevel} ур.` : active ? 'Вы здесь' : 'Охотиться здесь'}
@@ -223,7 +183,7 @@ export function MapPanel({ playerLevel, sourceClass, activeLocationId, onSelect 
         return (
           <section key={c.arm} className="corridor">
             <header className="corridor-head">
-              <MonsterThumb def={ENEMY_BY_ID[c.boss]} size={36} grayscale={locked} />
+              <MonsterThumb def={ENEMY_BY_ID[`${c.species[c.species.length - 1]}_warrior`]} size={36} grayscale={locked} />
               <div>
                 <div className="corridor-name">{c.name}</div>
                 <div className="sheet-sub">

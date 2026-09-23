@@ -242,9 +242,6 @@
   pointer-events: none;
 }
 
-.battle-chip-boss .icon {
-  color: var(--bad);
-}
 
 .battle-chip-buff {
   color: var(--arcane);
@@ -998,9 +995,6 @@ button.consumable {
   border: 1px solid var(--line);
 }
 
-.loc-monster.boss {
-  border-color: rgba(255, 107, 107, 0.35);
-}
 
 .loc-monster-name {
   display: flex;
@@ -1010,13 +1004,7 @@ button.consumable {
   font-weight: 800;
 }
 
-.boss-name {
-  color: var(--gold);
-}
 
-.boss-name .icon {
-  color: var(--bad);
-}
 
 .loc-monster-row {
   display: flex;
@@ -1053,54 +1041,71 @@ button.consumable {
   color: var(--gold);
 }
 
-.drop-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
+.drop-list {
+  display: flex;
+  flex-direction: column;
 }
 
-.drop-table th {
-  padding: 0 4px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  text-align: right;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.drop-table td {
-  padding: 7px 4px;
-  border-top: 1px solid var(--line);
-  text-align: right;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.drop-table td:first-child {
-  text-align: left;
-  white-space: normal;
-}
-
-.drop-label {
-  display: inline-flex;
+.drop-row {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 700;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
 }
 
-.drop-book-icon {
-  width: 18px;
-  height: 18px;
+.drop-row:first-child {
+  border-top: none;
+}
+
+.drop-row-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: radial-gradient(circle at 50% 35%, var(--panel-3), var(--bg-2));
+}
+
+.drop-row-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
   border-radius: 4px;
 }
 
-.drop-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+.drop-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 800;
 }
+
+.drop-row-name small {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.drop-row-chance {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+
+
+
+
+
+
 
 /* ---------- Profile ---------- */
 

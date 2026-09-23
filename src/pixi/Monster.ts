@@ -8,7 +8,6 @@ const HEALTH_BAR_HEIGHT = 5;
 const LEVEL_BADGE_RADIUS = 8;
 /** Monster sheets are 64px or 128px frames; both land on the same on-screen size. */
 const TARGET_FRAME_PX = 75;
-const BOSS_SCALE = 1.35;
 /**
  * The sheets' ground line is the bottom of the drop shadow, which sits a few
  * pixels below the feet; nudging down puts the feet on the same line as the hero's.
@@ -47,7 +46,6 @@ export interface MonsterSpawn {
   name: string;
   nameColor: number;
   level: number;
-  isBoss: boolean;
   maxHealth: number;
   atk: number;
   armor: number;
@@ -60,7 +58,6 @@ export class Monster {
   readonly container: PIXI.Container;
   readonly def: MonsterDef;
   readonly level: number;
-  readonly isBoss: boolean;
   readonly maxHealth: number;
   readonly atk: number;
   readonly armor: number;
@@ -86,7 +83,6 @@ export class Monster {
     this.id = nextId++;
     this.def = spawn.def;
     this.level = spawn.level;
-    this.isBoss = spawn.isBoss;
     this.maxHealth = spawn.maxHealth;
     this.health = spawn.maxHealth;
     this.atk = spawn.atk;
@@ -104,7 +100,7 @@ export class Monster {
     this.container.x = x;
     this.container.y = y;
 
-    const scale = (TARGET_FRAME_PX / sprite.frameSize) * (spawn.isBoss ? BOSS_SCALE : 1);
+    const scale = TARGET_FRAME_PX / sprite.frameSize;
     this.body = new PIXI.Container();
     this.sprite = new PIXI.AnimatedSprite(this.frames.walk);
     this.sprite.anchor.set(0.5, sprite.feetY / sprite.frameSize);
@@ -131,9 +127,9 @@ export class Monster {
 
     const name = new PIXI.Text(spawn.name, {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: spawn.isBoss ? 12 : 10,
+      fontSize: 10,
       fontWeight: '800',
-      fill: spawn.isBoss ? 0xffd166 : spawn.nameColor,
+      fill: spawn.nameColor,
       stroke: 0x0b0e14,
       strokeThickness: 3,
     });
@@ -160,7 +156,7 @@ export class Monster {
 
     const badge = new PIXI.Graphics();
     badge.lineStyle(1, 0x1c1c1c, 0.6);
-    badge.beginFill(spawn.isBoss ? 0xef4444 : 0xffb703);
+    badge.beginFill(0xffb703);
     badge.drawCircle(badgeX, badgeY, LEVEL_BADGE_RADIUS);
     badge.endFill();
     wrap.addChild(badge);

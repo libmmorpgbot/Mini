@@ -9,7 +9,6 @@ import { SkillEffectEmitter } from './SkillEffects';
 import { getLocationForLevel, LOCATIONS, type LocationDef } from '../data/locations';
 import { rollMonster } from '../game/spawn';
 import {
-  MINI_RATES,
   rollDamage,
   skillScaleMult,
   type SkillKey,
@@ -92,7 +91,6 @@ export class GameScene {
   private speedMultiplier = 1;
   private level = 1;
   private currentLocation: LocationDef;
-  private killsSinceBoss = 0;
   private spawnTimer = 0;
   private nextSpawnDelay = 0;
   private regenTimer = 0;
@@ -187,7 +185,6 @@ export class GameScene {
     if (!location) return;
 
     this.currentLocation = location;
-    this.killsSinceBoss = 0;
     this.swapBackground(location);
   }
 
@@ -208,12 +205,6 @@ export class GameScene {
 
   getBuffStatus(): BuffStatus[] {
     return [...this.buffs.entries()].map(([buff, b]) => ({ buff, secLeft: b.secLeft }));
-  }
-
-  /** Kills left in this corridor before its boss shows up; null where there is no boss. */
-  getKillsUntilBoss(): number | null {
-    if (!this.currentLocation.boss) return null;
-    return Math.max(0, MINI_RATES.bossEveryKills - this.killsSinceBoss);
   }
 
   destroy(): void {
@@ -281,16 +272,12 @@ export class GameScene {
     const height = this.app.screen.height;
     const location = this.currentLocation;
 
-    const isBoss = Boolean(location.boss) && this.killsSinceBoss >= MINI_RATES.bossEveryKills;
-    if (isBoss) this.killsSinceBoss = 0;
-
-    const m = rollMonster(location, isBoss);
+    const m = rollMonster(location);
     const monster = new Monster(width + 60, height * GROUND_Y_RATIO, {
       def: m.def,
       name: m.name,
       nameColor: m.nameColor,
       level: m.level,
-      isBoss: m.isBoss,
       maxHealth: m.stats.hp,
       atk: m.stats.atk,
       armor: m.stats.def,
@@ -311,9 +298,8 @@ export class GameScene {
     if (lifesteal > 0) this.pendingRegen += dmg * lifesteal;
 
     if (!monster.takeDamage(dmg)) return false;
-    this.killsSinceBoss += monster.isBoss ? 0 : 1;
     this.callbacks.onMonsterKilled(
-      { eid: monster.def.eid, level: monster.level, isBoss: monster.isBoss },
+      { eid: monster.def.eid, level: monster.level },
       this.currentLocation
     );
     return true;

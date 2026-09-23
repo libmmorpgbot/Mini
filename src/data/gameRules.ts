@@ -20,8 +20,6 @@ export const MINI_RATES = {
   books: 3000,
   /** XP per kill = monster level × this (the original gives 1 × level). */
   xpPerMonsterLevel: 20,
-  /** Every N kills in a corridor, that corridor's boss spawns. */
-  bossEveryKills: 25,
 };
 
 // ── Monster level curve ──────────────────────────────────────────────────────
@@ -164,7 +162,6 @@ export const EARLY_ZONE_ARMS = new Set([1, 2]);
 
 // ── Gear rarity & drop chance ────────────────────────────────────────────────
 const COMMON_ITEM_MAX_LEVEL = 10;
-export const BOSS_ITEM_DROP_MULT = 20;
 const RARITY_ORDER: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 
 export function itemRarityForLevel(lvl: number): Rarity {
@@ -200,7 +197,7 @@ function itemTierMaxLevel(rarity: Rarity): number {
   return itemTierMinLevel(RARITY_ORDER[idx + 1]) - 1;
 }
 
-/** Gear drop chance in percent, before boss/zone/Mini multipliers. */
+/** Gear drop chance in percent, before zone/Mini multipliers. */
 export function itemDropChanceAtLevel(lvl: number): number {
   lvl = Math.max(1, lvl || 1);
   const rarity = itemRarityForLevel(lvl);

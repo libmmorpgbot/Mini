@@ -8,11 +8,10 @@ interface SkillBarProps {
   sceneRef: RefObject<GameScene | null>;
 }
 
-/** Q/W/E/R cooldowns, active buffs and the boss countdown, polled from the scene. */
+/** Q/W/E/R cooldowns and active buffs, polled from the scene. */
 export function SkillBar({ sceneRef }: SkillBarProps) {
   const [skills, setSkills] = useState<SkillStatus[]>([]);
   const [buffs, setBuffs] = useState<BuffStatus[]>([]);
-  const [bossIn, setBossIn] = useState<number | null>(null);
 
   useEffect(() => {
     const poll = () => {
@@ -20,7 +19,6 @@ export function SkillBar({ sceneRef }: SkillBarProps) {
       if (!scene) return;
       setSkills(scene.getSkillStatus());
       setBuffs(scene.getBuffStatus());
-      setBossIn(scene.getKillsUntilBoss());
     };
     poll();
     const timer = window.setInterval(poll, POLL_MS);
@@ -30,12 +28,6 @@ export function SkillBar({ sceneRef }: SkillBarProps) {
   return (
     <>
       <div className="battle-info">
-        {bossIn !== null && (
-          <span className="battle-chip battle-chip-boss">
-            <Icon name="skull" size={13} />
-            {bossIn === 0 ? 'Босс идёт!' : `Босс через ${bossIn}`}
-          </span>
-        )}
         {buffs.map((b) => (
           <span key={b.buff} className="battle-chip battle-chip-buff">
             {BUFF_LABEL[b.buff]} {Math.ceil(b.secLeft)}с

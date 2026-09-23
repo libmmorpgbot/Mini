@@ -3,7 +3,7 @@ import { ARM_LEVEL_REQ, ARM_OFFSETS, ARM_ROOM_COUNTS, MAX_MONSTER_LEVEL } from '
 
 // The world of libmmorpgbot-: four corridors off the central hub, each made of
 // rooms whose monsters are one level stronger than the room before (78 rooms,
-// monster levels 1-78), plus the Farm Zone (shared/definitions.js:
+// monster levels 1-78), plus the Farm Zone. The original's corridor bosses are left out (shared/definitions.js:
 // FLOOR_ENEMIES, ARM_ROOM_COUNTS, ARM_LEVEL_REQ, FARM_*).
 export interface LocationDef {
   id: string;
@@ -18,8 +18,6 @@ export interface LocationDef {
   arm: number;
   /** Species rotated through room by room, weakest → strongest. */
   species: string[];
-  /** Boss that spawns every MINI_RATES.bossEveryKills kills (corridors only). */
-  boss?: string;
   /**
    * Farm Zone: every monster is a random pick from `farmPool`, gives
    * `xpMult`× XP and drops no gear or books (same as the original).
@@ -35,7 +33,6 @@ export interface CorridorDef {
   name: string;
   description: string;
   species: string[];
-  boss: string;
   landmark: Landmark;
   palette: ParallaxPalette;
 }
@@ -46,7 +43,6 @@ export const CORRIDORS: CorridorDef[] = [
     name: 'Левый коридор',
     description: 'Крысы, слизни и бесы',
     species: ['rat', 'slime', 'imp'],
-    boss: 'imp_boss',
     landmark: 'trees',
     palette: {
       skyTop: 0x3d7ab8,
@@ -66,7 +62,6 @@ export const CORRIDORS: CorridorDef[] = [
     name: 'Верхний коридор',
     description: 'Зомби, ящеры и орки',
     species: ['zombie', 'lizardman', 'orc'],
-    boss: 'orc_boss',
     landmark: 'graves',
     palette: {
       skyTop: 0x2e2f42,
@@ -86,7 +81,6 @@ export const CORRIDORS: CorridorDef[] = [
     name: 'Нижний коридор',
     description: 'Лозы, вампиры и бехолдеры',
     species: ['plant', 'vampire', 'beholder'],
-    boss: 'beholder_boss',
     landmark: 'fortress',
     palette: {
       skyTop: 0x334155,
@@ -106,7 +100,6 @@ export const CORRIDORS: CorridorDef[] = [
     name: 'Правый коридор',
     description: 'Древни и демоны',
     species: ['ent', 'demon'],
-    boss: 'demon_boss',
     landmark: 'rift',
     palette: {
       skyTop: 0x1a0a12,
@@ -135,7 +128,6 @@ export const ROOMS: LocationDef[] = CORRIDORS.flatMap((c) =>
       monsterLevelRange: [level, level] as [number, number],
       arm: c.arm,
       species: c.species,
-      boss: c.boss,
       landmark: c.landmark,
       palette: c.palette,
     };
