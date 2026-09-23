@@ -7,14 +7,9 @@ import { DamageNumberEmitter } from './DamageNumbers';
 import { ProjectileEmitter } from './Projectile';
 import { SkillEffectEmitter } from './SkillEffects';
 import { getLocationForLevel, LOCATIONS, type LocationDef } from '../data/locations';
-import { ENEMY_BY_ID, monsterForLocalLevel, type MonsterDef } from '../data/monsters';
+import { rollMonster } from '../game/spawn';
 import {
-  ARM_ROOM_COUNTS,
   MINI_RATES,
-  armLocalLevel,
-  monsterColorAtLevel,
-  monsterNameAtLevel,
-  monsterStatsAtLevel,
   rollDamage,
   skillScaleMult,
   type SkillKey,
@@ -45,10 +40,11 @@ export interface BuffStatus {
 }
 
 const BASE_MOVE_SPEED = 180; // px / second at speedMultiplier = 1
-const MONSTER_SPAWN_MIN_MS = 3000;
-const MONSTER_SPAWN_MAX_MS = 5500;
-/** Spawning pauses while this many monsters are already on screen. */
-const MAX_ALIVE_MONSTERS = 4;
+/** Pause after the path clears before the next monster walks in. */
+const MONSTER_SPAWN_MIN_MS = 800;
+const MONSTER_SPAWN_MAX_MS = 1600;
+/** Only one monster on the path at a time; the next spawns once it is dead. */
+const MAX_ALIVE_MONSTERS = 1;
 const PLAYER_X_RATIO = 0.3;
 const GROUND_Y_RATIO = 0.85;
 const MONSTER_DESPAWN_X = -60;
@@ -285,43 +281,19 @@ export class GameScene {
     const height = this.app.screen.height;
     const location = this.currentLocation;
 
-    const [minLevel, maxLevel] = location.monsterLevelRange;
-    let level: number;
-    let def: MonsterDef;
-    let localLevel: number;
-    let maxLocal: number;
-
-    if (location.farmPool) {
-      level = minLevel + Math.floor(Math.random() * (maxLevel - minLevel + 1));
-      def = ENEMY_BY_ID[location.farmPool[Math.floor(Math.random() * location.farmPool.length)]];
-      localLevel = armLocalLevel(level);
-      maxLocal = ARM_ROOM_COUNTS[1] - 1;
-    } else {
-      // playerLevel-2 .. playerLevel: monster DEF grows 1:1 with level, so
-      // anything above the hero's own level barely takes damage early on.
-      const rolled = this.level - Math.floor(Math.random() * 3);
-      level = Math.max(minLevel, Math.min(maxLevel, rolled));
-      localLevel = level - minLevel + 1;
-      maxLocal = ARM_ROOM_COUNTS[location.arm - 1] - 1;
-      def = monsterForLocalLevel(location.species, localLevel);
-    }
-
     const isBoss = Boolean(location.boss) && this.killsSinceBoss >= MINI_RATES.bossEveryKills;
-    if (isBoss && location.boss) {
-      def = ENEMY_BY_ID[location.boss];
-      this.killsSinceBoss = 0;
-    }
+    if (isBoss) this.killsSinceBoss = 0;
 
-    const stats = monsterStatsAtLevel(level, def.type);
+    const m = rollMonster(location, isBoss);
     const monster = new Monster(width + 60, height * GROUND_Y_RATIO, {
-      def,
-      name: monsterNameAtLevel(def.name, localLevel, isBoss, Boolean(def.fem), maxLocal),
-      nameColor: monsterColorAtLevel(def.color, def.endColor, localLevel, isBoss, maxLocal),
-      level,
-      isBoss,
-      maxHealth: stats.hp,
-      atk: stats.atk,
-      armor: stats.def,
+      def: m.def,
+      name: m.name,
+      nameColor: m.nameColor,
+      level: m.level,
+      isBoss: m.isBoss,
+      maxHealth: m.stats.hp,
+      atk: m.stats.atk,
+      armor: m.stats.def,
     });
     this.monsters.push(monster);
     this.monstersContainer.addChild(monster.container);
@@ -503,8 +475,10 @@ export class GameScene {
       }
     }
 
-    this.spawnTimer += deltaMS;
-    if (this.spawnTimer >= this.nextSpawnDelay && this.livingMonsters().length < MAX_ALIVE_MONSTERS) {
+    // The pause only counts while the path is clear.
+    if (this.livingMonsters().length >= MAX_ALIVE_MONSTERS) this.spawnTimer = 0;
+    else this.spawnTimer += deltaMS;
+    if (this.spawnTimer >= this.nextSpawnDelay) {
       this.spawnMonster();
       this.scheduleNextSpawn();
     }

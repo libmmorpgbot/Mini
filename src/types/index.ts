@@ -38,7 +38,7 @@ export interface CharacterClass {
   baseHP: number;
   baseAtk: number;
   baseDef: number;
-  /** Attacks per second at level 1. */
+  /** Attacks per second at level 1 (twice the original class's rate). */
   atkSpeed: number;
   /** Accent color used for this character's UI highlights (hex, e.g. 0xff0000). */
   accentColor: number;

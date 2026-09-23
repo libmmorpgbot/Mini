@@ -1,17 +1,18 @@
 import type { Landmark, ParallaxPalette } from '../pixi/ParallaxBackground';
-import { ARM_OFFSETS, ARM_ROOM_COUNTS } from './gameRules';
+import { ARM_LEVEL_REQ, ARM_OFFSETS, ARM_ROOM_COUNTS, MAX_MONSTER_LEVEL } from './gameRules';
 
-// The world of libmmorpgbot-: four corridors off the central hub, each with its
-// own rotation of monster species and a boss at the end, plus the Farm Zone
-// (shared/definitions.js: FLOOR_ENEMIES, ARM_LEVEL_REQ, FARM_*).
+// The world of libmmorpgbot-: four corridors off the central hub, each made of
+// rooms whose monsters are one level stronger than the room before (78 rooms,
+// monster levels 1-78), plus the Farm Zone (shared/definitions.js:
+// FLOOR_ENEMIES, ARM_ROOM_COUNTS, ARM_LEVEL_REQ, FARM_*).
 export interface LocationDef {
   id: string;
   name: string;
-  description: string;
-  icon: string;
-  /** Player level at which this location unlocks. */
+  /** Short label for compact tiles: the room's level, or "Ф" for the Farm Zone. */
+  short: string;
+  /** Player level at which this location unlocks (the corridor's gate). */
   minLevel: number;
-  /** Bounds for the (global) level rolled for monsters spawned here. */
+  /** Bounds for the level of monsters spawned here (a single level for rooms). */
   monsterLevelRange: [number, number];
   /** Corridor index 1-4 (drives the drop multipliers); 0 for the Farm Zone. */
   arm: number;
@@ -29,19 +30,21 @@ export interface LocationDef {
   landmark: Landmark;
 }
 
-function armRange(arm: number): [number, number] {
-  return [ARM_OFFSETS[arm - 1] + 1, ARM_OFFSETS[arm - 1] + ARM_ROOM_COUNTS[arm - 1]];
+export interface CorridorDef {
+  arm: number;
+  name: string;
+  description: string;
+  species: string[];
+  boss: string;
+  landmark: Landmark;
+  palette: ParallaxPalette;
 }
 
-export const LOCATIONS: LocationDef[] = [
+export const CORRIDORS: CorridorDef[] = [
   {
-    id: 'left',
+    arm: 1,
     name: 'Левый коридор',
     description: 'Крысы, слизни и бесы',
-    icon: '🐀',
-    minLevel: 1,
-    monsterLevelRange: armRange(1),
-    arm: 1,
     species: ['rat', 'slime', 'imp'],
     boss: 'imp_boss',
     landmark: 'trees',
@@ -59,13 +62,9 @@ export const LOCATIONS: LocationDef[] = [
     },
   },
   {
-    id: 'top',
+    arm: 2,
     name: 'Верхний коридор',
     description: 'Зомби, ящеры и орки',
-    icon: '🧟',
-    minLevel: 20,
-    monsterLevelRange: armRange(2),
-    arm: 2,
     species: ['zombie', 'lizardman', 'orc'],
     boss: 'orc_boss',
     landmark: 'graves',
@@ -83,38 +82,9 @@ export const LOCATIONS: LocationDef[] = [
     },
   },
   {
-    id: 'farm',
-    name: 'Фарм зона',
-    description: 'Зомби, ящеры и орки 21-30 ур. Опыт ×3, но без снаряжения и книг',
-    icon: '🌾',
-    minLevel: 20,
-    monsterLevelRange: [21, 30],
-    arm: 0,
-    species: ['zombie', 'lizardman', 'orc'],
-    farmPool: ['zombie_guard', 'zombie_warrior', 'lizardman_guard', 'lizardman_warrior', 'orc_guard', 'orc_warrior'],
-    xpMult: 3,
-    landmark: 'volcano',
-    palette: {
-      skyTop: 0x2a0d0d,
-      skyMid: 0x6b1a1a,
-      skyBottom: 0xc9502a,
-      hillFar: 0x5a1f1f,
-      hillNear: 0x2e0f0f,
-      groundTop: 0x4a1c14,
-      groundBottom: 0x1a0a08,
-      path: 0x8a3a1a,
-      accent: 0xffcf5c,
-      cloud: 0xffb37a,
-    },
-  },
-  {
-    id: 'bottom',
+    arm: 3,
     name: 'Нижний коридор',
     description: 'Лозы, вампиры и бехолдеры',
-    icon: '🧛',
-    minLevel: 40,
-    monsterLevelRange: armRange(3),
-    arm: 3,
     species: ['plant', 'vampire', 'beholder'],
     boss: 'beholder_boss',
     landmark: 'fortress',
@@ -132,13 +102,9 @@ export const LOCATIONS: LocationDef[] = [
     },
   },
   {
-    id: 'right',
+    arm: 4,
     name: 'Правый коридор',
     description: 'Древни и демоны',
-    icon: '😈',
-    minLevel: 60,
-    monsterLevelRange: armRange(4),
-    arm: 4,
     species: ['ent', 'demon'],
     boss: 'demon_boss',
     landmark: 'rift',
@@ -157,12 +123,61 @@ export const LOCATIONS: LocationDef[] = [
   },
 ];
 
+/** One room per monster level: room N holds level-N monsters. */
+export const ROOMS: LocationDef[] = CORRIDORS.flatMap((c) =>
+  Array.from({ length: ARM_ROOM_COUNTS[c.arm - 1] }, (_, i) => {
+    const level = ARM_OFFSETS[c.arm - 1] + i + 1;
+    return {
+      id: `room-${level}`,
+      name: `${c.name} · комната ${i + 1}`,
+      short: `${level}`,
+      minLevel: Math.max(1, ARM_LEVEL_REQ[c.arm - 1]),
+      monsterLevelRange: [level, level] as [number, number],
+      arm: c.arm,
+      species: c.species,
+      boss: c.boss,
+      landmark: c.landmark,
+      palette: c.palette,
+    };
+  })
+);
+
+export const FARM_ZONE: LocationDef = {
+  id: 'farm',
+  name: 'Фарм зона',
+  short: 'Ф',
+  minLevel: 20,
+  monsterLevelRange: [21, 30],
+  arm: 0,
+  species: ['zombie', 'lizardman', 'orc'],
+  farmPool: ['zombie_guard', 'zombie_warrior', 'lizardman_guard', 'lizardman_warrior', 'orc_guard', 'orc_warrior'],
+  xpMult: 3,
+  landmark: 'volcano',
+    palette: {
+      skyTop: 0x2a0d0d,
+      skyMid: 0x6b1a1a,
+      skyBottom: 0xc9502a,
+      hillFar: 0x5a1f1f,
+      hillNear: 0x2e0f0f,
+      groundTop: 0x4a1c14,
+      groundBottom: 0x1a0a08,
+      path: 0x8a3a1a,
+      accent: 0xffcf5c,
+      cloud: 0xffb37a,
+    },
+};
+
+export const LOCATIONS: LocationDef[] = [...ROOMS, FARM_ZONE];
+
+/** The room matching the hero's level (capped at the last one). */
 export function getLocationForLevel(level: number): LocationDef {
-  let current = LOCATIONS[0];
-  for (const location of LOCATIONS) {
-    if (location.arm > 0 && level >= location.minLevel) {
-      current = location;
-    }
-  }
-  return current;
+  return ROOMS[Math.min(MAX_MONSTER_LEVEL, Math.max(1, level)) - 1];
+}
+
+export function corridorOf(location: LocationDef): CorridorDef | undefined {
+  return CORRIDORS.find((c) => c.arm === location.arm);
+}
+
+export function isUnlocked(location: LocationDef, playerLevel: number): boolean {
+  return playerLevel >= location.minLevel;
 }

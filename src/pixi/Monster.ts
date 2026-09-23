@@ -7,8 +7,13 @@ const HEALTH_BAR_WIDTH = 46;
 const HEALTH_BAR_HEIGHT = 5;
 const LEVEL_BADGE_RADIUS = 8;
 /** Monster sheets are 64px or 128px frames; both land on the same on-screen size. */
-const TARGET_FRAME_PX = 150;
+const TARGET_FRAME_PX = 75;
 const BOSS_SCALE = 1.35;
+/**
+ * The sheets' ground line is the bottom of the drop shadow, which sits a few
+ * pixels below the feet; nudging down puts the feet on the same line as the hero's.
+ */
+const GROUND_DROP_PX = 5;
 /** Enemies swing every 1.4-2.0 s (server/game/Room.js). */
 const ATTACK_INTERVAL_MIN = 1.4;
 const ATTACK_INTERVAL_MAX = 2.0;
@@ -104,6 +109,7 @@ export class Monster {
     this.sprite = new PIXI.AnimatedSprite(this.frames.walk);
     this.sprite.anchor.set(0.5, sprite.feetY / sprite.frameSize);
     this.sprite.scale.set(scale);
+    this.sprite.y = GROUND_DROP_PX;
     this.sprite.animationSpeed = sprite.walk.fps / 60;
     this.sprite.play();
     this.body.addChild(this.sprite);

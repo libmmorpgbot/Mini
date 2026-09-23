@@ -12,6 +12,7 @@ import { SkillBar } from './components/SkillBar';
 import { DropFeed, type DropEntry } from './components/DropFeed';
 import { useGameState } from './hooks/useGameState';
 import { useTelegram } from './hooks/useTelegram';
+import { Icon } from './components/Icon';
 import { CHARACTERS } from './data/characters';
 import { LOCATIONS, getLocationForLevel } from './data/locations';
 import { GEAR_BY_ID } from './data/items';
@@ -122,9 +123,10 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter }: Gam
 
         {activeTab === 'game' && (
           <>
-            <div className="location-badge">
-              {activeLocation.icon} {activeLocation.name}
-            </div>
+            <button className="location-badge" onClick={() => onChangeTab('map')}>
+              <Icon name="pin" size={14} />
+              {activeLocation.name}
+            </button>
             <DropFeed drops={drops} />
             <SkillBar sceneRef={sceneRef} />
           </>
@@ -149,8 +151,8 @@ function GameShell({ character, activeTab, onChangeTab, onChangeCharacter }: Gam
         {activeTab === 'map' && (
           <div className="tab-panel">
             <MapPanel
-              locations={LOCATIONS}
               playerLevel={state.level}
+              sourceClass={character.sourceClass}
               activeLocationId={activeLocation.id}
               onSelect={(id) => {
                 setSelectedLocationId(id);

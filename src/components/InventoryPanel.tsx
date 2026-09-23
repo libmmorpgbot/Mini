@@ -15,6 +15,7 @@ import {
   type GearDef,
 } from '../data/items';
 import { BOOK_BY_ID } from '../data/skills';
+import { Icon } from './Icon';
 
 interface InventoryPanelProps {
   character: CharacterClass;
@@ -70,7 +71,9 @@ export function InventoryPanel({ character, state, stats, actions }: InventoryPa
               {def && item ? (
                 <ItemIcon def={def} onClick={() => setSelected({ item, equipped: true })} />
               ) : (
-                <div className="item-cell empty">{emptyIcon}</div>
+                <div className="item-cell empty">
+                  <Icon name={emptyIcon} size={22} />
+                </div>
               )}
               <span className="inv-slot-label">{label}</span>
             </div>
@@ -79,12 +82,24 @@ export function InventoryPanel({ character, state, stats, actions }: InventoryPa
       </div>
 
       <div className="inv-stats">
-        <span>⚔️ {stats.atk}</span>
-        <span>🛡️ {stats.def}</span>
-        <span>❤️ {stats.maxHp}</span>
-        <span>⭐ {Math.round(stats.critChance * 100)}%</span>
-        <span>💥 ×{stats.critPower.toFixed(2)}</span>
-        <span>⚡ {stats.atkSpeed.toFixed(2)}/с</span>
+        <span>
+          <Icon name="sword" size={14} /> {stats.atk}
+        </span>
+        <span>
+          <Icon name="shield" size={14} /> {stats.def}
+        </span>
+        <span>
+          <Icon name="heart" size={14} /> {stats.maxHp}
+        </span>
+        <span>
+          <Icon name="star" size={14} /> {Math.round(stats.critChance * 100)}%
+        </span>
+        <span>
+          <Icon name="flame" size={14} /> ×{stats.critPower.toFixed(2)}
+        </span>
+        <span>
+          <Icon name="bolt" size={14} /> {stats.atkSpeed.toFixed(2)}/с
+        </span>
       </div>
 
       <h2 className="panel-subtitle">
@@ -186,7 +201,7 @@ export function InventoryPanel({ character, state, stats, actions }: InventoryPa
                       setSelected(null);
                     }}
                   >
-                    Продать за {SELL_PRICE[selectedDef.rarity]} 💰
+                    Продать · {SELL_PRICE[selectedDef.rarity]} <Icon name="coin" size={14} className="tint-gold" />
                   </button>
                 </>
               )}

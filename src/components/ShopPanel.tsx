@@ -1,6 +1,7 @@
 import type { GameState } from '../types';
 import type { GameApi } from '../hooks/useGameState';
 import { MERCHANT_SHOP, POTION_BY_ID } from '../data/items';
+import { Icon } from './Icon';
 
 interface ShopPanelProps {
   state: GameState;
@@ -12,7 +13,7 @@ const BUY_AMOUNTS = [1, 10];
 export function ShopPanel({ state, actions }: ShopPanelProps) {
   return (
     <div className="shop-panel">
-      <h1 className="panel-title">Торговец</h1>
+      <h1 className="panel-title">Лавка торговца</h1>
       <p className="panel-hint">Зелья пьются сами, когда здоровье падает ниже 30%.</p>
       <div className="consumables-list">
         {MERCHANT_SHOP.map(({ itemId, price }) => {
@@ -30,7 +31,7 @@ export function ShopPanel({ state, actions }: ShopPanelProps) {
                   disabled={state.gold < price * qty}
                   onClick={() => actions.buy(itemId, qty)}
                 >
-                  ×{qty} · {price * qty} 💰
+                  ×{qty} · {price * qty} <Icon name="coin" size={13} className="tint-gold" />
                 </button>
               ))}
             </div>

@@ -3,6 +3,8 @@
 // knobs in MINI_RATES are specific to this idle runner, which spawns one
 // monster every few seconds instead of whole rooms of them.
 
+import type { IconName } from '../components/Icon';
+
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type MonsterType = 'guard' | 'warrior' | 'boss';
 
@@ -127,6 +129,9 @@ export function armIndexForLevel(lvl: number): number {
   return ARM_ROOM_COUNTS.length;
 }
 
+/** Hero level required to enter each corridor (left, top, bottom, right). */
+export const ARM_LEVEL_REQ = [0, 20, 40, 60];
+
 export function armLocalLevel(globalLvl: number): number {
   const armIdx = armIndexForLevel(globalLvl);
   return Math.max(1, globalLvl || 1) - ARM_OFFSETS[armIdx - 1];
@@ -135,13 +140,6 @@ export function armLocalLevel(globalLvl: number): number {
 // ── Rewards ──────────────────────────────────────────────────────────────────
 export function goldAtLevel(lvl: number): number {
   return Math.max(1, Math.round(lvl || 1));
-}
-
-/** Gold only drops 30% of the time from regular monsters; bosses always drop it. */
-export function rollGoldDrop(lvl: number, isBoss: boolean): number {
-  const g = goldAtLevel(lvl);
-  if (isBoss) return g;
-  return Math.random() > 0.3 ? 0 : g;
 }
 
 // ── Drop growth ──────────────────────────────────────────────────────────────
@@ -246,14 +244,14 @@ export function skillPointBudget(lvl: number): number {
 
 export type UpgradeKey = 'atk' | 'def' | 'hp' | 'atkSpeed' | 'critChance' | 'critPower' | 'hpRegen';
 
-export const UPGRADE_DEF: Record<UpgradeKey, { label: string; icon: string; desc: string }> = {
-  atk: { label: 'Атака', icon: '⚔️', desc: '+1 ATK' },
-  def: { label: 'Защита', icon: '🛡️', desc: '+1 DEF' },
-  hp: { label: 'Здоровье', icon: '❤️', desc: '+10 MaxHP' },
-  atkSpeed: { label: 'Скор. атаки', icon: '⚡', desc: '+0.05 уд/с' },
-  critChance: { label: 'Шанс крита', icon: '⭐', desc: '+1%' },
-  critPower: { label: 'Сила крита', icon: '🔥', desc: '+3%' },
-  hpRegen: { label: 'Реген HP', icon: '💚', desc: '+0.1/сек' },
+export const UPGRADE_DEF: Record<UpgradeKey, { label: string; icon: IconName; desc: string }> = {
+  atk: { label: 'Атака', icon: 'sword', desc: '+1 ATK' },
+  def: { label: 'Защита', icon: 'shield', desc: '+1 DEF' },
+  hp: { label: 'Здоровье', icon: 'heart', desc: '+10 MaxHP' },
+  atkSpeed: { label: 'Скор. атаки', icon: 'bolt', desc: '+0.05 уд/с' },
+  critChance: { label: 'Шанс крита', icon: 'star', desc: '+1%' },
+  critPower: { label: 'Сила крита', icon: 'flame', desc: '+3%' },
+  hpRegen: { label: 'Реген HP', icon: 'leaf', desc: '+0.1/сек' },
 };
 
 export const UPGRADE_KEYS = Object.keys(UPGRADE_DEF) as UpgradeKey[];

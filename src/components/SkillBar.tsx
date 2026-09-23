@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
+import { Icon } from './Icon';
 import { BUFF_LABEL, type BuffStatus, type GameScene, type SkillStatus } from '../pixi/GameScene';
 
 const POLL_MS = 200;
@@ -30,7 +31,10 @@ export function SkillBar({ sceneRef }: SkillBarProps) {
     <>
       <div className="battle-info">
         {bossIn !== null && (
-          <span className="battle-chip">{bossIn === 0 ? '💀 Босс идёт!' : `💀 Босс через ${bossIn}`}</span>
+          <span className="battle-chip battle-chip-boss">
+            <Icon name="skull" size={13} />
+            {bossIn === 0 ? 'Босс идёт!' : `Босс через ${bossIn}`}
+          </span>
         )}
         {buffs.map((b) => (
           <span key={b.buff} className="battle-chip battle-chip-buff">
@@ -52,7 +56,7 @@ export function SkillBar({ sceneRef }: SkillBarProps) {
                 </div>
               )}
               <span className="skill-slot-key">{s.key}</span>
-              {locked ? <span className="skill-slot-lock">🔒</span> : <span className="skill-slot-lvl">{s.level}</span>}
+              {locked ? <Icon name="lock" size={16} className="skill-slot-lock" /> : <span className="skill-slot-lvl">{s.level}</span>}
             </div>
           );
         })}

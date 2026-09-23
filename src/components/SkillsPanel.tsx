@@ -12,6 +12,7 @@ import {
 } from '../data/gameRules';
 import { SKILL_DEF, skillBookId } from '../data/skills';
 import { availableSkillPoints } from '../game/stats';
+import { Icon } from './Icon';
 
 interface SkillsPanelProps {
   character: CharacterClass;
@@ -56,7 +57,7 @@ export function SkillsPanel({ character, state, actions }: SkillsPanelProps) {
                   {skill.desc} · КД {skill.cd}с
                 </div>
                 <div className="skill-card-books">
-                  📘 Книг: {have}
+                  <Icon name="book" size={12} /> Книг: {have}
                   {roll && (
                     <span className={roll.success ? 'roll-ok' : 'roll-fail'}>
                       {roll.success ? ' Успех!' : ' Неудача'}
@@ -86,7 +87,7 @@ export function SkillsPanel({ character, state, actions }: SkillsPanelProps) {
       <div className="upgrade-list">
         {UPGRADE_KEYS.map((key) => (
           <div key={key} className="upgrade-row">
-            <span className="upgrade-icon">{UPGRADE_DEF[key].icon}</span>
+            <Icon name={UPGRADE_DEF[key].icon} size={18} className="upgrade-icon" />
             <span className="upgrade-name">
               {UPGRADE_DEF[key].label} <small>{UPGRADE_DEF[key].desc}</small>
             </span>

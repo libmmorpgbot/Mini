@@ -2,6 +2,7 @@ import type { CharacterClass, GameState } from '../types';
 import type { PlayerStats } from '../game/stats';
 import { battlePower } from '../game/stats';
 import { staticFrameStyle } from '../utils/characterVisuals';
+import { Icon } from './Icon';
 
 interface HUDProps {
   character: CharacterClass;
@@ -27,13 +28,13 @@ export function HUD({ character, state, stats }: HUDProps) {
           <div className="stat-bar hp-bar">
             <div className="stat-bar-fill" style={{ width: `${healthPercent}%` }} />
             <span className="stat-bar-label">
-              ❤ {Math.round(state.health)}/{state.maxHealth}
+              {Math.round(state.health)} / {state.maxHealth}
             </span>
           </div>
           <div className="stat-bar xp-bar">
             <div className="stat-bar-fill" style={{ width: `${xpPercent}%` }} />
             <span className="stat-bar-label">
-              ⭐ {state.xp}/{state.xpToNextLevel}
+              {state.xp} / {state.xpToNextLevel}
             </span>
           </div>
         </div>
@@ -41,19 +42,19 @@ export function HUD({ character, state, stats }: HUDProps) {
 
       <div className="header-stats">
         <div className="stat-chip stat-chip-power">
-          <span className="stat-chip-icon">⚔️</span>
+          <Icon name="swords" size={15} className="stat-chip-icon" />
           <span className="stat-chip-value">{battlePower(stats)}</span>
         </div>
         <div className="stat-chip stat-chip-gold">
-          <span className="stat-chip-icon">💰</span>
+          <Icon name="coin" size={15} className="stat-chip-icon" />
           <span className="stat-chip-value">{state.gold}</span>
         </div>
         <div className="stat-chip stat-chip-gem">
-          <span className="stat-chip-icon">💎</span>
+          <Icon name="gem" size={15} className="stat-chip-icon" />
           <span className="stat-chip-value">{state.gems}</span>
         </div>
         <div className="stat-chip stat-chip-speed">
-          <span className="stat-chip-icon">⚡</span>
+          <Icon name="bolt" size={15} className="stat-chip-icon" />
           <span className="stat-chip-value">{Math.round(state.speed * 100)}%</span>
         </div>
       </div>

@@ -3,6 +3,7 @@
 // classes this game has, plus the merchant's health potions. Skill books are
 // generated per class in skills.ts.
 import type { Rarity } from './gameRules';
+import type { IconName } from '../components/Icon';
 
 const ICONS = import.meta.glob('../assets/items/*.png', { eager: true, import: 'default' }) as Record<string, string>;
 const icon = (file: string) => ICONS[`../assets/items/${file}.png`];
@@ -55,14 +56,14 @@ export const RARITY_LABEL: Record<Rarity, string> = {
   legendary: 'Легендарный',
 };
 
-export const EQ_SLOTS: { slot: GearSlot; label: string; emptyIcon: string }[] = [
-  { slot: 'weapon', label: 'Оружие', emptyIcon: '🗡️' },
-  { slot: 'helmet', label: 'Шлем', emptyIcon: '⛑️' },
-  { slot: 'body', label: 'Тело', emptyIcon: '🥋' },
-  { slot: 'gloves', label: 'Перчи', emptyIcon: '🧤' },
-  { slot: 'boots', label: 'Боты', emptyIcon: '🥾' },
-  { slot: 'ring', label: 'Кольцо', emptyIcon: '💍' },
-  { slot: 'belt', label: 'Пояс', emptyIcon: '🎗️' },
+export const EQ_SLOTS: { slot: GearSlot; label: string; emptyIcon: IconName }[] = [
+  { slot: 'weapon', label: 'Оружие', emptyIcon: 'sword' },
+  { slot: 'helmet', label: 'Шлем', emptyIcon: 'helmet' },
+  { slot: 'body', label: 'Тело', emptyIcon: 'armor' },
+  { slot: 'gloves', label: 'Перчи', emptyIcon: 'gloves' },
+  { slot: 'boots', label: 'Боты', emptyIcon: 'boots' },
+  { slot: 'ring', label: 'Кольцо', emptyIcon: 'ring' },
+  { slot: 'belt', label: 'Пояс', emptyIcon: 'belt' },
 ];
 
 export const GEAR_DEF: GearDef[] = [
