@@ -7,7 +7,7 @@ import { DamageNumberEmitter } from './DamageNumbers';
 import { ProjectileEmitter } from './Projectile';
 import { SkillEffectEmitter } from './SkillEffects';
 import { getLocationForLevel, LOCATIONS, type LocationDef } from '../data/locations';
-import { rollMonster } from '../game/spawn';
+import { monsterPool, rollMonster } from '../game/spawn';
 import {
   rollDamage,
   skillScaleMult,
@@ -91,6 +91,9 @@ export class GameScene {
   private speedMultiplier = 1;
   private level = 1;
   private currentLocation: LocationDef;
+  /** Shuffled queue of monster ids still to come before the location's list repeats. */
+  private spawnBag: string[] = [];
+  private lastSpawnedEid: string | null = null;
   private spawnTimer = 0;
   private nextSpawnDelay = 0;
   private regenTimer = 0;
@@ -185,6 +188,7 @@ export class GameScene {
     if (!location) return;
 
     this.currentLocation = location;
+    this.spawnBag = [];
     this.swapBackground(location);
   }
 
@@ -267,12 +271,30 @@ export class GameScene {
     this.spawnTimer = 0;
   }
 
+  /**
+   * Deals out every monster of the location once, in random order, before any
+   * of them comes back -- and never the same one twice in a row across refills.
+   */
+  private nextSpawnEid(): string {
+    if (!this.spawnBag.length) {
+      const bag = [...monsterPool(this.currentLocation)];
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [bag[i], bag[j]] = [bag[j], bag[i]];
+      }
+      if (bag.length > 1 && bag[0] === this.lastSpawnedEid) bag.push(bag.shift() as string);
+      this.spawnBag = bag;
+    }
+    this.lastSpawnedEid = this.spawnBag.shift() as string;
+    return this.lastSpawnedEid;
+  }
+
   private spawnMonster(): void {
     const width = this.app.screen.width;
     const height = this.app.screen.height;
     const location = this.currentLocation;
 
-    const m = rollMonster(location);
+    const m = rollMonster(location, this.nextSpawnEid());
     const monster = new Monster(width + 60, height * GROUND_Y_RATIO, {
       def: m.def,
       name: m.name,

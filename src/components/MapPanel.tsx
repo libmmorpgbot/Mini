@@ -4,7 +4,7 @@ import { ENEMY_BY_ID } from '../data/monsters';
 import { EQ_SLOTS, RARITY_COLOR, RARITY_LABEL } from '../data/items';
 import { CHARACTERS } from '../data/characters';
 import { dropTable } from '../game/loot';
-import { roomMonster } from '../game/spawn';
+import { monsterPool, poolMonster, roomMonster } from '../game/spawn';
 import { Icon } from './Icon';
 import { MonsterThumb } from './MonsterThumb';
 
@@ -70,8 +70,7 @@ function LocationSheet({
 }) {
   const locked = !isUnlocked(location, playerLevel);
   const table = dropTable(location, sourceClass);
-  const monsters = location.farmPool ? location.farmPool.map((eid) => ENEMY_BY_ID[eid]) : [];
-  const preview = location.farmPool ? null : roomMonster(location);
+  const monsters = monsterPool(location).map((eid) => poolMonster(location, eid));
   const [minLvl, maxLvl] = location.monsterLevelRange;
 
   return (
@@ -90,31 +89,30 @@ function LocationSheet({
           </button>
         </div>
 
-        <div className="sheet-section-title">Монстры</div>
-        {preview ? (
-          <div className="loc-monster">
-            <MonsterThumb def={preview.def} size={56} />
-            <div>
-              <div className="loc-monster-name" style={{ color: hex(preview.nameColor) }}>
-                {preview.name}
-              </div>
-              <div className="stat-line">
-                <span><Icon name="heart" size={13} /> {preview.stats.hp}</span>
-                <span><Icon name="sword" size={13} /> {preview.stats.atk}</span>
-                <span><Icon name="shield" size={13} /> {preview.stats.def}</span>
+        <div className="sheet-section-title">Монстры · {monsters.length} видов, без повторов подряд</div>
+        <div className="loc-monsters">
+          {monsters.map((m) => (
+            <div key={m.def.eid} className="loc-monster">
+              <MonsterThumb def={m.def} size={48} />
+              <div>
+                <div className="loc-monster-name" style={{ color: hex(m.nameColor) }}>
+                  {m.name}
+                </div>
+                <div className="stat-line">
+                  {location.farmPool ? (
+                    <span>21–30 ур.</span>
+                  ) : (
+                    <>
+                      <span><Icon name="heart" size={13} /> {m.stats.hp}</span>
+                      <span><Icon name="sword" size={13} /> {m.stats.atk}</span>
+                      <span><Icon name="shield" size={13} /> {m.stats.def}</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="loc-monster-row">
-            {monsters.map((m) => (
-              <div key={m.eid} className="loc-monster-mini">
-                <MonsterThumb def={m} size={44} />
-                <span>{m.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
+          ))}
+        </div>
 
         <div className="sheet-section-title">Добыча · шанс с одного монстра</div>
         <div className="drop-list">

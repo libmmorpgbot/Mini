@@ -38,17 +38,28 @@ function build(level: number, def: MonsterDef): MonsterPreview {
   };
 }
 
-/** The monster a corridor room spawns (deterministic). */
+/** The room's signature monster (the one the original put in this room), for map tiles. */
 export function roomMonster(location: LocationDef): MonsterPreview {
   const level = location.monsterLevelRange[0];
   return build(level, monsterForLocalLevel(location.species, armLocalLevel(level)));
 }
 
-/** A fresh spawn for `location`: rooms are fixed, the Farm Zone rolls level and species. */
-export function rollMonster(location: LocationDef): MonsterPreview {
-  if (!location.farmPool) return roomMonster(location);
+/**
+ * Every monster that roams `location`: each of its corridor's species in both
+ * the guard and the warrior look (the Farm Zone keeps its own list).
+ */
+export function monsterPool(location: LocationDef): string[] {
+  return location.farmPool ?? location.species.flatMap((sp) => [`${sp}_guard`, `${sp}_warrior`]);
+}
+
+/** `eid` as it appears in `location`, at the room's level. */
+export function poolMonster(location: LocationDef, eid: string): MonsterPreview {
+  return build(location.monsterLevelRange[0], ENEMY_BY_ID[eid]);
+}
+
+/** A fresh spawn of `eid` in `location`: rooms have a fixed level, the Farm Zone rolls one. */
+export function rollMonster(location: LocationDef, eid: string): MonsterPreview {
   const [min, max] = location.monsterLevelRange;
   const level = min + Math.floor(Math.random() * (max - min + 1));
-  const def = ENEMY_BY_ID[location.farmPool[Math.floor(Math.random() * location.farmPool.length)]];
-  return build(level, def);
+  return build(level, ENEMY_BY_ID[eid]);
 }
